@@ -24,10 +24,14 @@ from pathlib import Path
 from threading import Thread
 import hashlib
 import event_control_lab
-from event_control_lab import Config, GridSpec, StudySpec, compare, grid_check, study
+from event_control_lab import Config, GridSpec, PlantAdapter, StudySpec, compare, grid_check, study
 from event_control_lab.server import Handler
 from event_control_lab.controller_lab import ControllerLabSpec, controller_lab
 from dataclasses import replace
+import base64
+import io
+import zipfile
+from event_control_lab.policy import checkpoint, evaluate_policy
 from event_control_lab.planned_study import PlannedSpec, select_schedule, test_schedule
 
 config = Config(duration=0.8, budget=4, heartbeat=0.2, measurement_noise=0,
@@ -44,6 +48,14 @@ planned_spec = PlannedSpec(config=Config(duration=0.8, dt=0.1, budget=8, heartbe
     test_seeds=(93, 94), rmse_limit=100)
 planned_selection = select_schedule(planned_spec)
 planned_test = test_schedule(planned_selection)
+
+adapter = PlantAdapter("installed-package constant model", "scalar",
+                       lambda config: lambda state, held_input, dt: (0.5,),
+                       parameters={"constant": 0.5}, source="original distribution-check fixture")
+custom_compare = compare(config, plant=adapter)
+custom_study = study(spec, plant=adapter)
+custom_learning = controller_lab(learning_spec, plant=adapter)
+assert all(run["trajectory"][1]["state"] == [0.5] for run in custom_compare["runs"])
 
 class QuietHandler(Handler):
     def log_message(self, *args):
@@ -65,6 +77,24 @@ try:
             assert api_checks[route], route
         finally:
             connection.close()
+    for route, payload, expected_file, expected in (
+        ("/api/controllers", {"method": "ilc", "spec": asdict(learning_spec)},
+         "controllers.json", controller_lab(learning_spec, "ilc")),
+        ("/api/evaluate-policy", {"checkpoint": checkpoint(learning), "seeds": [3001]},
+         "evaluation.json", evaluate_policy(checkpoint(learning), [3001])),
+    ):
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=10)
+        try:
+            connection.request("POST", route, body=json.dumps(payload))
+            response = connection.getresponse()
+            assert response.status == 200, (route, response.status)
+            result = json.loads(response.read())
+            with zipfile.ZipFile(io.BytesIO(base64.b64decode(result["archive_base64"]))) as archive:
+                assert archive.testzip() is None
+                api_checks[route] = json.loads(archive.read(expected_file)) == json.loads(json.dumps(expected))
+                assert api_checks[route], route
+        finally:
+            connection.close()
 finally:
     server.shutdown()
     server.server_close()
@@ -80,10 +110,11 @@ print(json.dumps({
     "version": event_control_lab.__version__,
     "runtime_dependencies": data.get_all("Requires-Dist", []) if data else None,
     "static_sha256": {name: hashlib.sha256(resources.files("event_control_lab.web").joinpath(name).read_bytes()).hexdigest()
-                      for name in ("index.html", "style.css", "app.js", "study.js")},
+                      for name in ("index.html", "style.css", "app.js", "study.js", "controllers.js")},
     "compare": single, "study": scanned, "grid_check": grid_check(GridSpec(config)),
     "controller_lab": learning,
     "planned_selection": planned_selection, "planned_test": planned_test,
+    "custom_model": {"compare": custom_compare, "study": custom_study, "controller_lab": custom_learning},
     "installed_http_api_matches_direct_calls": api_checks,
 }))
 '''
@@ -154,7 +185,7 @@ def main():
             raise ValueError("unexpected runtime dependency")
         if installed["distribution"] != "sparsiloop" or installed["runtime_dependencies"] is None:
             raise ValueError("installed distribution metadata is missing or misnamed")
-        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "planned_selection", "planned_test"):
+        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "custom_model", "planned_selection", "planned_test"):
             if installed[key] != source[key]:
                 raise ValueError(f"installed/source mismatch: {key}")
         for command in ("sparsiloop", "event-control-lab"):
@@ -189,9 +220,9 @@ def main():
             raise ValueError("planned test changed its input record")
         extracted = extract_source(archive, base / "fresh source")
         for path in ("README.md", "README.en.md", "BRANDING.md", "START_HERE.md", "quickstart.py", "docs/grid-check.md",
-                     "examples/grid-check.json", "scripts/check_distribution.py", "docs/planned-study.md",
-                     "examples/planned-study.json", "event_control_lab/planned_study.py", "event_control_lab/planned_report.py",
-                     "event_control_lab/planned_cli.py"):
+                     "examples/grid-check.json", "examples/own_model_case.py", "docs/own-model.md", "scripts/check_distribution.py", "docs/planned-study.md",
+                     "examples/planned-study.json", "event_control_lab/planned_study.py",
+                     "event_control_lab/planned_report.py", "event_control_lab/planned_cli.py"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -201,6 +232,15 @@ def main():
         run([str(python), "-I", str(extracted / "quickstart.py"), "--mode", "controllers",
              "--method", "ilc", "--no-open", "--out", str(base / "extracted quickstart output")],
             base, logs, "extracted-quickstart")
+        model_output = base / "extracted own model output"
+        run([str(python), "-m", "examples.own_model_case", "--out", str(model_output)],
+            extracted, logs, "extracted-own-model-case")
+        model_result = json.loads((model_output / "network/result.json").read_text(encoding="utf-8"))
+        model_source = extracted / "examples/own_model_case.py"
+        if model_result["plant"]["source_sha256"] != hashlib.sha256(model_source.read_bytes()).hexdigest():
+            raise ValueError("custom-model recipe did not retain its own source fingerprint")
+        if not (model_output / "controllers/report.html").is_file():
+            raise ValueError("custom-model recipe did not produce its learning report")
         tests = run([str(python), "-m", "unittest", "discover", "-s", "tests", "-v"],
                     extracted, logs, "fresh-source-tests")
         count = re.search(r"Ran (\d+) tests", tests.stderr)
@@ -217,6 +257,8 @@ def main():
             "both_command_entry_points": True, "installed_grid_cli": True,
             "installed_controller_cli_and_result_parity": True,
             "installed_planned_selection_and_test_match_source": True,
+            "installed_custom_model_compare_study_learning_match_source": True,
+            "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),
             "publicly_released": False,

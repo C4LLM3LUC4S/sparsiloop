@@ -14,7 +14,7 @@ def open_page(url, disabled):
         try:
             webbrowser.open(url)
         except (OSError, webbrowser.Error):
-            print("Browser unavailable. Open the printed URL or HTML path manually.")
+            print("浏览器没有自动打开。请复制上方网址，或手动打开报告文件。 / Open the printed URL or HTML file.")
 
 
 def main():
@@ -38,31 +38,31 @@ def main():
         parser.error("--out and --method require --mode controllers")
     if not 0 <= args.port <= 65535:
         parser.error("--port must be between zero and 65535")
-    print("SparsiLoop source preview / 源码预览；不安装依赖，不修改已有环境。", flush=True)
+    print("SparsiLoop：直接运行本地源码，不会安装软件或改动现有环境。 / Running local source; no installation.", flush=True)
     try:
         if args.mode == "controllers":
             from event_control_lab.controller_lab import controller_lab, export_controller_lab
             label = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
             output = args.out.resolve() if args.out else root / "runs" / ("controllers-" + label)
             if output.exists():
-                parser.error("output already exists; choose a new folder to preserve earlier reports")
+                parser.error("输出文件夹已存在，请换一个新文件夹；旧报告会保留。 / Output already exists; choose a new folder")
             export_controller_lab(controller_lab(method=args.method), output)
             report = (output / "report.html").resolve()
-            print("Open report / 打开报告：" + str(report), flush=True)
+            print("报告已保存，打开这个文件即可查看 / Report: " + str(report), flush=True)
             open_page(report.as_uri(), args.no_open)
         else:
             from event_control_lab.server import Handler
             with ThreadingHTTPServer(("127.0.0.1", args.port), Handler) as server:
                 url = f"http://127.0.0.1:{server.server_port}"
-                print("Local lab / 本地实验室：" + url, flush=True)
-                print("Keep this terminal open; Ctrl+C stops it. / 保持此窗口，Ctrl+C 停止。", flush=True)
+                print("网页已启动，请在浏览器打开 / Local lab: " + url, flush=True)
+                print("使用网页时请保持这个终端窗口打开；结束后按 Ctrl+C。 / Keep this terminal open; Ctrl+C stops it.", flush=True)
                 # Bind first; never open a browser to a different service occupying the port.
                 open_page(url, args.no_open)
                 server.serve_forever()
     except KeyboardInterrupt:
         print("Stopped / 已停止。")
     except (OSError, ValueError) as exc:
-        parser.exit(2, f"SparsiLoop: {exc}. Choose a new writable output folder or --port 0.\n")
+        parser.exit(2, f"SparsiLoop: {exc}. 如果报告无法保存，请换一个有写入权限的新文件夹；如果端口被占用，请加 --port 0。 / Use a writable new folder or --port 0.\n")
     return 0
 
 

@@ -2,9 +2,9 @@
 
 Need to choose a communication threshold before inspecting test outcomes? The [planned selection workflow](docs/planned-study.md) saves a fixed rule and every candidate result, then evaluates the chosen schedule on declared test seeds in a separate command. It uses built-in plants and fixed feedback; failures remain visible and test outcomes never trigger reselection.
 
-**Compare control error with the messages it actually costs.**
+**What happens to control error when you send fewer sensor messages?**
 
-SparsiLoop is a local lab for students and control researchers to compare event-triggered and periodic feedback under packet budgets, delay and loss. Inspect every message, keep failed cases visible and export reproducible trajectories and metrics.
+Try it on your computer: set a message limit, delay and loss probability, then compare regular sending with sending when measurements change. See where errors grow, check which messages arrived and save the results for analysis. The teaching models give you a starting point; a Python adapter lets you bring your own model.
 
 [中文](README.md) · [Protocol](docs/protocol.md) · [Post-hoc traffic study](docs/traffic-study.md) · [Grid check](docs/grid-check.md)
 
@@ -27,6 +27,8 @@ python -m event_control_lab serve --port 8788
 Open the displayed loopback URL. Set a maximum packet budget, delay and loss probability, then run the comparison. A common maximum budget is not equal actual traffic. The lower section scans all declared thresholds and seeds and builds a separate periodic reference at the event run's actual attempted packet count.
 
 Run the [MFAC, ILC and reinforcement-learning recipes](docs/classic-controllers.md):
+
+You can also configure them in the [web lab](docs/web-recipes.md), download a complete offline report ZIP, or load a saved checkpoint for testing on new seeds. Training and test results stay separate. The CLI below supports a wider workload and parameter range.
 
 ```sh
 python -m event_control_lab controller-lab --out runs/controllers
@@ -51,6 +53,8 @@ python -m unittest discover -s tests -v
 Output folders must be new. Full JSON includes configurations, source fingerprints, external random inputs, packet accounting and raw trajectories. Study exports retain every declared pair and its eligibility reasons; failures do not receive a zero score. Post-hoc references use observed traffic after each event run, so they are descriptive diagnostics, not prospective tuning or independent performance evidence.
 
 ## Use your own controller
+
+Have your own dynamics? The [local plant adapter](docs/own-model.md) connects a declared single-input scalar or position–velocity model to network comparisons, post-hoc references and MFAC/ILC/RL recipes. Run `python -m examples.own_model_case --out runs/own-model` for a complete report. Retain model source, parameters, units and an independent known-input check. See [product tasks and acceptance](docs/product-scope.md).
 
 ```python
 from event_control_lab import Config, compare

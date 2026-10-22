@@ -2,9 +2,9 @@
 
 想在消息上限内先选一个发送门槛，再换一组条件复核？新增[先选方案、再测试](docs/planned-study.md)流程，用两个独立命令保存选择、运行预留测试。所有候选和失败保留，测试成绩不会反过来替你改选；目前使用内置模型和固定反馈控制。
 
-**把控制误差与真实通信开销放在一起比较。**
+**少发一些传感器消息，会让控制效果变差多少？**
 
-面向控制与机器人学习者的本地实验工具：调整通信预算、延迟和丢包，比较事件触发与周期控制，追踪每条消息，并导出可复核的轨迹与指标。
+SparsiLoop 帮你在电脑上试一试：调整消息发送次数、延迟和丢包，比较定期发送与按变化发送时的控制误差。你可以查看消息是否到达、误差在哪里变大，再保存完整数据继续分析。适合控制与机器人课程中的实验，也可作为接入自己模型的起点。
 
 A local lab to compare event-triggered and periodic control under communication budgets, delay and packet loss. Inspect every message and export reproducible trajectories and metrics.
 
@@ -32,13 +32,17 @@ python -m event_control_lab serve --port 8788
 
 ## 经典控制与学习案例
 
+在网页点击“试试 MFAC、ILC 和强化学习”，就能选择方法、调整参数、运行并下载完整离线报告。也能选择保存的策略，用新种子继续测试；见[网页实验说明](docs/web-recipes.md)。需要更多参数或更大规模时，使用下面的命令。
+
 ```powershell
 python -m event_control_lab controller-lab --out runs/controllers
 ```
 
-打开新目录中的 `report.html`：一次运行得到 MFAC 在线估计、ILC 重复试次、强化学习训练后冻结评测。每轮数据和失败均保留；RL 同时给出未训练和固定反馈参考，不保证优于它们。三者首版均使用一阶教学对象，MFAC/ILC 要求完整规则采样；它们还不是通用的事件触发版本。可用 `--method mfac`、`ilc`、`rl` 单独运行，完整参数、公式与限制见 [经典控制案例](docs/classic-controllers.md)。
+打开新目录中的 `report.html`。MFAC 在运行时估计模型对输入的响应；ILC 反复执行同一个任务，用上一轮误差调整下一轮输入；强化学习先训练策略，再固定策略到新的随机种子上测试。每轮数据和失败均保留；RL 同时给出未训练和固定反馈参考，不保证优于它们。三者首版均使用一阶教学对象，MFAC/ILC 要求完整规则采样；它们还不是通用的事件触发版本。可用 `--method mfac`、`ilc`、`rl` 单独运行，完整参数、公式与限制见 [经典控制案例](docs/classic-controllers.md)。
 
 ## 保存可重复结果
+
+强化学习训练后的策略可以[重新加载后单独测试](docs/saved-policy.md)，不需要重跑训练。新入口会核对训练时的时间步长、时域和输入上限，在新种子下输出独立报告；目前支持内置一阶模型。
 
 ```powershell
 python -m event_control_lab compare --config examples/default.json --out runs/first
@@ -48,6 +52,8 @@ python -m unittest discover -s tests -v
 输出 `result.json` 和 `trajectory.csv`，已有目录拒绝覆盖。网页也可下载相同结构的 JSON 和 CSV。JSON 包含参数、Python 版本、核心源码指纹、每步外部随机输入、消息账本和轨迹。对内置控制器，同一源码和 Python 环境中，同一配置的完整结果应逐字可重复；跨平台浮点逐位一致尚未建立。
 
 ## 接自己的控制器
+
+已有自己的对象方程？先看[接入自己的模型](docs/own-model.md)。`python -m examples.own_model_case --out runs/own-model` 生成完整导读报告；同一个本地模型接入三种发送策略、事后实际发送量参考及 MFAC/ILC/RL，无需修改核心。当前支持单输入、一维输出或位置—速度布局，参数来源为使用者声明。
 
 ```python
 from event_control_lab import Config, compare
@@ -65,7 +71,7 @@ result = compare(Config(), controller_factory=lambda config: MyController())
 
 ## 按实际通信量再比较一次
 
-网页下方可扫描多个门槛与种子：先记录事件策略的实际发送数，再生成同一随机输入下、相同尝试发送数的周期参考。失败项保留；参考提前停止导致发送数未对齐时，差值不可用。这是事后描述性对照，不能作为预先调参或普遍优越性的证据。
+在网页下方填写几组门槛和随机种子，就能批量比较。程序先记录事件策略的发送次数，再让周期策略按这个次数运行，两次使用相同的外部随机数。失败项保留；参考提前停止导致发送数未对齐时，差值不可用。这是事后描述性对照，不能作为预先调参或普遍优越性的证据。
 
 ```powershell
 python -m event_control_lab study --spec examples/traffic-study.json --out runs/traffic-check
@@ -84,6 +90,7 @@ python -m event_control_lab grid-check --spec examples/grid-check.json --out run
 ## 解释与范围
 
 - [实验约定](docs/protocol.md)：对象方程、触发规则、时序、预算和指标。
+- [产品任务与验收](docs/product-scope.md)：适用用户、实际任务及仍需的收益证据。
 - [实际通信量对照](docs/traffic-study.md)：多门槛、多种子、事后周期参考和失败覆盖。
 - [步长核查](docs/grid-check.md)：固定物理时间条件，区分触发变化与位置积分偏差。
 - [首阶段设计与验收](docs/experiment-plan.md)：本轮问题、固定变量和验证条件。

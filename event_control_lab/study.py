@@ -47,7 +47,7 @@ class StudySpec:
         return cls(config=Config.from_dict(value.get("config", {})), **arguments)
 
 
-def study(spec=None, controller_factory=None):
+def study(spec=None, controller_factory=None, *, plant=None):
     spec = StudySpec() if spec is None else spec
     factory = LinearFeedback if controller_factory is None else controller_factory
     runs, pairs, traces = {}, [], {}
@@ -59,10 +59,11 @@ def study(spec=None, controller_factory=None):
             for policy in ("absolute", "relative"):
                 identifier = f"pair-{len(pairs) + 1:03d}"
                 event_id, reference_id = identifier + "-event", identifier + "-reference"
-                event = simulate(config, policy, factory(config), trace)
+                event = simulate(config, policy, factory(config), trace, plant=plant)
                 reference_config = replace(config, budget=event["packets"]["attempted"])
-                # Transport budget changes; controller initialization stays identical within the pair.
-                reference = simulate(reference_config, "periodic", factory(config), trace)
+                # Transport budget changes; controller and model initialization stay identical.
+                reference = simulate(reference_config, "periodic", factory(config), trace,
+                                     plant=plant, plant_config=config)
                 runs[event_id] = {"config": asdict(config), "controller_factory_config": asdict(config), "result": event}
                 runs[reference_id] = {"config": asdict(reference_config), "controller_factory_config": asdict(config), "result": reference}
                 matched = event["packets"]["attempted"] == reference["packets"]["attempted"]
@@ -102,7 +103,7 @@ def study(spec=None, controller_factory=None):
                 "eligible_seeds": [pair["seed"] for pair in eligible],
             })
     source = Path(__file__).parent
-    return {
+    result = {
         "schema_version": 1, "engine_version": "0.0.1", "protocol": PROTOCOL,
         "analysis": "posthoc-attempted-packet-reference-v1",
         "python_version": platform.python_version(),
@@ -120,6 +121,10 @@ def study(spec=None, controller_factory=None):
         "spec": asdict(spec), "exogenous_traces": traces, "runs": runs,
         "pairs": pairs, "summaries": summaries,
     }
+    if plant is not None:
+        result["plant"] = plant.metadata()
+        result["scope"]["plant_initialization"] = "Fresh model from the same event configuration for each side; only the transport budget changes"
+    return result
 
 
 def comparison_rows(result):

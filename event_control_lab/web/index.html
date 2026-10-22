@@ -3,70 +3,75 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SparsiLoop · 事件触发控制实验室</title>
-  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/study.js" defer></script>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/study.js" defer></script><script src="/controllers.js" defer></script>
 </head>
 <body>
 <header><a class="brand" href="/">SparsiLoop<span>EVENT-TRIGGERED CONTROL LAB</span></a><span class="badge">本地原型 · 0.0.1</span></header>
 <main>
-  <section class="intro"><p class="eyebrow">把通信开销放回控制实验</p>
+  <section class="intro"><p class="eyebrow">看看控制效果，也算算用了多少消息</p>
     <h1>少发消息，<br>还能控制好吗？</h1>
-    <p class="lead">给三种策略相同的发送上限，看看偏差、消息数量和观测延迟怎样一起变化。</p>
+    <p class="lead">先选一个模型，再调整发送次数、延迟和丢包。用同一组条件比较三种发送策略，看看少发消息会带来什么变化。</p>
+    <p class="entry-links"><a href="#controller-title">试试 MFAC、ILC 和强化学习</a> · <a href="#saved-policy-title">重新测试保存的策略</a></p>
   </section>
   <div class="workspace">
-    <aside class="panel settings"><h2>设置一次实验</h2>
+    <aside class="panel settings"><h2>设置实验条件</h2>
       <form id="settings">
-        <label>被控对象<select name="plant"><option value="scalar">一阶不稳定系统</option><option value="double_integrator">位置—速度系统</option></select></label>
+        <label>要控制的模型<select name="plant"><option value="scalar">一阶系统（不控制时会偏离目标）</option><option value="double_integrator">位置—速度系统</option></select></label>
         <label>最多发送消息 <output id="budget-value">80 次</output><input name="budget" type="range" min="0" max="200" step="1" value="80"></label>
         <label>单向延迟 <output id="delay-value">40 ms</output><input name="delay_steps" type="range" min="0" max="20" step="1" value="2"></label>
         <label>丢包概率 <output id="loss-value">5%</output><input name="loss_probability" type="range" min="0" max="1" step="0.05" value="0.05"></label>
-        <details><summary>触发参数与重复实验</summary>
+        <details><summary>调整发送门槛、噪声和随机数</summary>
+          <p class="hint">事件策略会在测量变化达到门槛时请求发送，也会定期检查是否太久没发消息。完整规则见页面底部。噪声标准差越大，随机波动通常越明显。</p>
           <label>绝对变化门槛<input name="threshold" type="number" min="0" max="2" step="0.01" value="0.06"></label>
           <label>相对门槛系数<input name="relative_threshold" type="number" min="0" max="2" step="0.05" value="0.15"></label>
           <label>测量噪声标准差<input name="measurement_noise" type="number" min="0" max="2" step="0.005" value="0.005"></label>
           <label>输入扰动标准差<input name="process_noise" type="number" min="0" max="2" step="0.01" value="0.01"></label>
           <label>随机种子<input name="seed" type="number" min="0" max="4294967295" step="1" value="20261022"></label>
+          <p class="hint">随机种子是这组随机数的编号。保持参数、种子和运行环境相同，可以重复这次实验。</p>
         </details>
         <button id="run" type="submit">运行比较 <span>↗</span></button>
-        <p class="hint">8 秒仿真，每 20 ms 检查一次。修改设置后点击运行；相同种子可重复。</p>
+        <p class="hint">模拟 8 秒，每 20 ms 检查一次。改好设置后点击“运行比较”，结果才会更新。</p>
       </form>
     </aside>
     <section class="results" aria-label="比较结果">
-      <div class="result-heading"><h2>同一发送上限下的三种选择</h2><span id="status" role="status" aria-live="polite">准备运行</span></div>
-      <p id="scope" class="scope">先看偏差，再看实际用了多少条消息。更少的消息不必然意味着更好的控制。</p>
+      <div class="result-heading"><h2>三种发送策略的结果</h2><span id="status" role="status" aria-live="polite">准备运行</span></div>
+      <p id="scope" class="scope">先看误差，再看实际用了多少条消息。三种策略的发送上限相同，实际发送次数可能不同。</p>
+      <p class="hint">位置误差用 RMSE（均方根误差）表示：它概括整个模拟时段的位置偏差，在相同条件下越小越好。出现“—”表示无法计算，不是零误差。</p>
       <div class="cards" id="cards"></div>
       <section class="panel plot-panel"><div class="plot-heading"><div><h3>偏差怎样随时间变化</h3><p>目标位置为 0；曲线越靠近虚线，位置偏差越小。</p></div><div id="legend" class="legend"></div></div>
         <canvas id="trajectory" width="1000" height="300" role="img" aria-label="三种策略的位置偏差随时间变化"></canvas>
-        <p class="hint">真值曲线用于事后评估，控制器只能读取已经到达的测量消息。</p>
+        <p class="hint">曲线显示模拟模型的实际位置。控制器只能使用已经收到的测量，不会直接读取曲线上的当前位置。</p>
       </section>
-      <section class="panel details-panel"><h3>每条消息都对得上</h3>
-        <div class="table-scroll" tabindex="0"><table><thead><tr><th>策略</th><th>已发送</th><th>已到达</th><th>已丢失</th><th>仍在途</th><th>控制器调用</th><th>变化量检测</th></tr></thead><tbody id="ledger"></tbody></table></div>
-        <p class="hint">已发送 = 已到达 + 已丢失 + 仍在途。丢包也占用发送预算。调用次数与检测次数不是实测 CPU 耗时。</p>
+      <section class="panel details-panel"><h3>消息发出去后，到了哪里？</h3>
+        <div class="table-scroll" tabindex="0"><table><thead><tr><th>策略</th><th>尝试发送</th><th>已到达</th><th>已丢失</th><th>还在路上</th><th>计算控制输入的次数</th><th>检查变化量的次数</th></tr></thead><tbody id="ledger"></tbody></table></div>
+        <p class="hint">尝试发送次数 = 已到达 + 已丢失 + 还在路上。丢失的消息也占用发送次数；后两列统计计算次数，不代表程序耗时。</p>
       </section>
       <div class="downloads"><button type="button" id="download-json" disabled>下载完整实验 JSON</button><button type="button" id="download-csv" disabled>下载轨迹 CSV</button><span>包含参数、原始轨迹及可重复的随机输入。</span></div>
       <section class="panel study-panel" aria-labelledby="study-title">
         <p class="eyebrow">再核对实际通信量</p><h2 id="study-title">如果周期策略也只发这么多条呢？</h2>
-        <p class="scope">先运行事件策略，再用其实际发送数设置同一随机输入下的周期参考。每个门槛和种子都会保留。这是事后对照，参考预算来自已完成的事件运行。</p>
+        <p class="scope">上面的比较只限制最多能发多少次。这里再做一次对照：先记录事件策略发了多少次，再让周期策略按这个次数运行。两次使用同一组外部随机数，所有结果都会保留，包括失败项。</p>
         <form id="study-settings">
           <label>变化门槛列表<input name="thresholds" type="text" value="0.02, 0.06, 0.12, 0.24" required aria-describedby="study-help"></label>
           <label>随机种子列表<input name="seeds" type="text" value="20261022, 20261023, 20261024" required aria-describedby="study-help"></label>
-          <button type="submit" id="study-run">扫描并生成通信量对照</button>
+          <button type="submit" id="study-run">运行这组对照</button>
         </form>
-        <p id="study-help" class="hint">用英文逗号分隔。此处列表分别替代单次实验的变化门槛和随机种子；其余参数使用左侧设置。扫描不自动挑选最优门槛。</p>
-        <p id="study-status" role="status" aria-live="polite">尚未扫描</p>
+        <p id="study-help" class="hint">多个数字用英文逗号分隔，每个门槛都会在每个种子下运行。其余条件沿用左侧设置，不会自动替你选择最好的门槛。</p>
+        <p id="study-status" role="status" aria-live="polite">这组对照尚未运行</p>
         <div id="study-output" hidden>
           <p id="study-scope" class="scope"></p>
           <p class="hint">横轴：实际尝试发送次数（含丢包）；纵轴：位置 RMSE。实心点为事件策略，空心点为各自的周期参考。未完成项保留在表中，不画成零分。</p>
           <div class="legend"><span class="study-absolute">绝对变化</span><span class="study-relative">相对变化</span><span class="study-periodic">空心：周期参考</span></div>
           <canvas id="traffic-plot" width="1000" height="300" role="img" aria-label="实际消息数与位置偏差散点图，逐项数值见下表"></canvas>
           <p id="study-counts" class="scope"></p>
-          <h3>按门槛汇总 · 差值为事件减周期</h3>
-          <p class="hint">只有全部请求种子都可比，才显示全部种子的平均差值；负值表示本组事件偏差较小。宽表可横向滑动。</p>
-          <div class="table-scroll" tabindex="0"><table><thead><tr><th>事件策略</th><th>门槛</th><th>可比 / 请求种子</th><th>全部种子平均差值</th><th>事件 / 周期未完成</th><th>发送量未对齐</th></tr></thead><tbody id="study-summary"></tbody></table></div>
+          <h3>每个门槛下，误差相差多少？</h3>
+          <p class="hint">差值 = 事件策略误差 − 周期策略误差；负值表示这组实验中事件策略的误差较小。只有全部种子的运行都满足比较条件，才显示整组平均差。宽表可横向滑动。</p>
+          <div class="table-scroll" tabindex="0"><table><thead><tr><th>事件策略</th><th>门槛</th><th>能比较 / 全部实验</th><th>整组平均差</th><th>未完成：事件 / 周期</th><th>发送次数不同</th></tr></thead><tbody id="study-summary"></tbody></table></div>
           <details><summary>展开全部逐项结果与不可用原因</summary>
-            <div class="table-scroll" tabindex="0"><table><thead><tr><th>事件策略</th><th>门槛</th><th>种子</th><th>发送数：事件 / 周期</th><th>事件 RMSE</th><th>周期 RMSE</th><th>差：事件 − 周期</th><th>配对状态</th></tr></thead><tbody id="study-pairs"></tbody></table></div>
+            <div class="table-scroll" tabindex="0"><table><thead><tr><th>事件策略</th><th>门槛</th><th>种子</th><th>发送数：事件 / 周期</th><th>事件 RMSE</th><th>周期 RMSE</th><th>差：事件 − 周期</th><th>这组能否比较</th></tr></thead><tbody id="study-pairs"></tbody></table></div>
           </details>
-          <div class="downloads"><button type="button" id="study-json">下载完整扫描 JSON</button><button type="button" id="study-csv">下载逐项对照 CSV</button></div>
-          <p class="hint">相同发送数不代表相同到达数、观测年龄、计算量、字节或能耗。配对预算逐个种子事后确定，不能代替预先调参、独立测试或普遍优越性证据。</p>
+          <div class="downloads"><button type="button" id="study-json">下载全部对照结果 JSON</button><button type="button" id="study-csv">下载逐项对照 CSV</button></div>
+          <p class="hint">这次是看过事件策略的发送次数后再设置周期策略，适合解释已有结果，不能当作提前选好参数的独立测试。发送次数相同，也可能收到不同数量的消息；它们的延迟、计算量和能耗并不因此相同。</p>
+          <p class="hint">下一步：先展开不能比较的项目，看看是运行中断还是发送次数不同。需要调整条件时，下载保留这次结果，再运行新的对照。</p>
         </div>
       </section>
       <details class="panel protocol"><summary>本次比较的约定与范围</summary>
@@ -80,6 +85,59 @@
       </details>
     </section>
   </div>
+  <section class="panel recipe-panel" aria-labelledby="controller-title">
+    <p class="eyebrow">从发送策略，走到控制方法</p><h2 id="controller-title">想看看控制器是怎么学的吗？</h2>
+    <p class="scope">这里是一组独立实验，使用内置的一阶模型，让偏离的位置回到 0。MFAC 边运行边估计，ILC 用上一轮误差调整下一轮，强化学习先训练再测试。下面的参数与上方的发送策略比较分别设置。</p>
+    <form id="controller-settings" class="recipe-form">
+      <label>先试哪种方法<select name="method"><option value="ilc">ILC：同一个任务多做几轮</option><option value="mfac">MFAC：边运行边估计</option><option value="rl">强化学习：训练后再测试</option><option value="all">三种都运行，分开看结果</option></select></label>
+      <label>每次模拟多少秒<input name="duration" type="number" min="0.2" max="2" step="0.2" value="1.2" required></label>
+      <label>初始位置偏差<input name="initial_position" type="number" min="-1.5" max="1.5" step="0.1" value="1" required></label>
+      <fieldset data-method="mfac"><legend>MFAC 怎么调整</legend>
+        <label>初始响应估计（phi0）<input name="phi0" type="number" step="0.001" value="0.02"></label>
+        <label>每次调整的幅度（rho）<input name="rho" type="number" min="0.001" max="1" step="0.05" value="0.5"></label>
+        <p class="hint">初始估计是你给定的先验，不是从模型真值中偷读的参数。</p>
+      </fieldset>
+      <fieldset data-method="ilc"><legend>ILC 多做几轮</legend>
+        <label>重复多少轮<input name="ilc_trials" type="number" min="2" max="30" step="1" value="12"></label>
+        <label>上一轮误差用多大幅度修正（学习增益）<input name="ilc_gain" type="number" min="0" max="20" step="0.1" value="2"></label>
+      </fieldset>
+      <fieldset data-method="rl"><legend>强化学习先训练，再测试</legend>
+        <label>训练多少个种子<input name="training_count" type="number" min="1" max="128" step="1" value="32"></label>
+        <label>训练种子从哪里开始<input name="training_start" type="number" min="0" max="4294967295" step="1" value="100"></label>
+        <label>测试种子，用英文逗号分隔<input name="evaluation_seeds" type="text" value="1001,1002,1003"></label>
+        <label>测试时最多发送多少<select name="budget_fraction"><option value="0">不发消息</option><option value="0.25">采样次数的 25%</option><option value="0.5" selected>采样次数的 50%</option><option value="1">与采样次数相同</option></select></label>
+        <label>测试消息延迟几个步长<input name="delay_steps" type="number" min="0" max="10" step="1" value="2"></label>
+        <label>测试丢包概率<input name="loss_probability" type="number" min="0" max="1" step="0.05" value="0.05"></label>
+        <p class="hint">种子是随机数的编号；训练按起始编号连续取值，测试种子必须另选。测试初始位置也由种子生成，范围为 −1.5 到 1.5。测试时还加入测量噪声 0.005、输入扰动 0.01；这些条件与训练不同，并不保证策略能适应。</p>
+      </fieldset>
+      <p class="hint recipe-wide">每步为 20 ms。MFAC、ILC 和强化学习训练均使用完整、无延迟、无丢包、无噪声的测量。测试不会继续学习。网页只提供有限规模的教学实验，完整参数会随结果保存。</p>
+      <button id="controller-run" type="submit">运行选中的实验</button>
+    </form>
+    <p id="controller-status" role="status" aria-live="polite">正在准备默认设置…</p>
+    <details id="controller-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
+    <div id="controller-output" hidden></div>
+  </section>
+  <section class="panel recipe-panel" aria-labelledby="saved-policy-title">
+    <h2 id="saved-policy-title">保存的策略，拿出来再测一次</h2>
+    <p class="scope">载入完整的 policy-checkpoint.json，用新种子测试，不需要重新训练。模型、时间尺度和输入上限会沿用保存时的设置；这里支持内置一阶模型，暂不接收 Python 代码或自定义模型。</p>
+    <form id="saved-policy-settings" class="recipe-form">
+      <label>选择保存的策略文件<input name="checkpoint" type="file" accept=".json,application/json"></label>
+      <label>新的测试种子，用英文逗号分隔<input name="seeds" type="text" value="2001,2002,2003" required></label>
+      <button type="button" id="use-latest-policy">使用刚才实验保存的策略</button>
+      <button type="submit">只测试，不训练</button>
+    </form>
+    <p id="saved-policy-source" class="hint">还没有载入策略。请选文件，或先运行上面的强化学习实验。</p>
+    <details id="saved-policy-history" hidden>
+      <summary>查看已用种子</summary>
+      <p class="hint">这些编号来自当前载入的策略记录。选择新编号前先核对一下；开始测试时，程序还会校验文件。</p>
+      <p id="saved-training-seeds" class="scope"></p>
+      <p id="saved-test-seeds" class="scope"></p>
+    </details>
+    <p id="saved-policy-status" role="status" aria-live="polite">等待选择策略</p>
+    <details id="saved-policy-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
+    <div id="saved-policy-output" hidden></div>
+    <p class="hint">每次请另选种子，已有训练和测试种子会随策略保留。编号不同本身不证明统计独立；如果你根据这些结果改了参数，就要把它们记为探索，再另定测试方案。</p>
+  </section>
 </main>
-<footer>SparsiLoop · 本地计算，不需要账户、API 密钥或 GPU。开发原型，尚未公开发行。</footer>
+<footer>SparsiLoop · 在本机运行，不需要账户、API 密钥或 GPU。源码已公开，目前提供开发原型，尚无版本下载包。</footer>
 </body></html>
