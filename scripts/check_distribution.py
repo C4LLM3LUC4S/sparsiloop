@@ -164,7 +164,7 @@ def main():
         tests = run([str(python), "-m", "unittest", "discover", "-s", "tests", "-v"],
                     extracted, logs, "fresh-source-tests")
         count = re.search(r"Ran (\d+) tests", tests.stderr)
-        if not count or "\nOK\n" not in tests.stderr.replace("\r\n", "\n"):
+        if not count or not re.search(r"(?m)^OK(?: \(skipped=\d+\))?\s*$", tests.stderr):
             raise ValueError("source-distribution test result was not recognized")
         summary = {
             "status": "passed", "distribution": installed["distribution"], "version": installed["version"],
