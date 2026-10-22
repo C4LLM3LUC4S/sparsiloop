@@ -4,12 +4,15 @@ from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+from threading import BoundedSemaphore
 
 from .engine import Config, compare
 from .study import StudySpec, study
+from .web_recipes import default_specification, run_recipes, test_saved_policy
 
 
 WEB = Path(__file__).with_name("web")
+RECIPE_SLOT = BoundedSemaphore(1)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -27,7 +30,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/favicon.ico":
             return self.respond(204, b"", "image/x-icon")
         routes = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
-                  "/style.css": ("style.css", "text/css"), "/study.js": ("study.js", "text/javascript")}
+                  "/style.css": ("style.css", "text/css"), "/study.js": ("study.js", "text/javascript"),
+                  "/controllers.js": ("controllers.js", "text/javascript")}
         if self.path in routes:
             name, mime = routes[self.path]
             return self.respond(200, (WEB / name).read_bytes(), mime + "; charset=utf-8")
@@ -35,10 +39,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, json.dumps(asdict(Config())).encode())
         if self.path == "/api/health":
             return self.respond(200, b'{"status":"ok","version":"0.0.1"}')
+        if self.path == "/api/controllers/default":
+            return self.respond(200, json.dumps(default_specification()).encode())
         self.respond(404, b'{"error":"not found"}')
 
     def do_POST(self):
-        if self.path not in {"/api/compare", "/api/study"}:
+        if self.path not in {"/api/compare", "/api/study", "/api/controllers", "/api/evaluate-policy"}:
             return self.respond(404, b'{"error":"not found"}')
         host = f"127.0.0.1:{self.server.server_port}"
         if self.headers.get("Host") not in {host, f"localhost:{self.server.server_port}"}:
@@ -48,13 +54,28 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(403, b'{"error":"same origin required"}')
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 65536:
-                raise ValueError("request must contain 1..65536 bytes")
-            value = json.loads(self.rfile.read(length))
-            result = study(StudySpec.from_dict(value)) if self.path == "/api/study" else compare(Config.from_dict(value))
+            maximum = 2 * 1024 * 1024 if self.path == "/api/evaluate-policy" else 65536
+            if length <= 0:
+                raise ValueError(f"request must contain 1..{maximum} bytes")
+            self.connection.settimeout(10)
+            data = self.rfile.read(min(length, maximum + 1))
+            if length > maximum:
+                raise ValueError(f"request must contain 1..{maximum} bytes")
+            value = json.loads(data)
+            if self.path in {"/api/controllers", "/api/evaluate-policy"}:
+                if not RECIPE_SLOT.acquire(blocking=False):
+                    return self.respond(429, json.dumps({"error": "另一个控制实验还在运行，请等它结束后再试。"}, ensure_ascii=False).encode())
+                try:
+                    result = run_recipes(value) if self.path == "/api/controllers" else test_saved_policy(value)
+                finally:
+                    RECIPE_SLOT.release()
+            else:
+                result = study(StudySpec.from_dict(value)) if self.path == "/api/study" else compare(Config.from_dict(value))
             payload = json.dumps(result, ensure_ascii=False, allow_nan=False).encode()
-        except (ValueError, TypeError, UnicodeError) as exc:
+        except (ValueError, TypeError, UnicodeError, RecursionError) as exc:
             return self.respond(400, json.dumps({"error": str(exc)}, ensure_ascii=False).encode())
+        except OSError:
+            return self.respond(500, json.dumps({"error": "这次没能生成下载文件，请检查本机临时目录的可用空间和写入权限。"}, ensure_ascii=False).encode())
         self.respond(200, payload)
 
 

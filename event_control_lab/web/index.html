@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SparsiLoop · 事件触发控制实验室</title>
-  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/study.js" defer></script>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/study.js" defer></script><script src="/controllers.js" defer></script>
 </head>
 <body>
 <header><a class="brand" href="/">SparsiLoop<span>EVENT-TRIGGERED CONTROL LAB</span></a><span class="badge">本地原型 · 0.0.1</span></header>
@@ -11,6 +11,7 @@
   <section class="intro"><p class="eyebrow">看看控制效果，也算算用了多少消息</p>
     <h1>少发消息，<br>还能控制好吗？</h1>
     <p class="lead">先选一个模型，再调整发送次数、延迟和丢包。用同一组条件比较三种发送策略，看看少发消息会带来什么变化。</p>
+    <p class="entry-links"><a href="#controller-title">试试 MFAC、ILC 和强化学习</a> · <a href="#saved-policy-title">重新测试保存的策略</a></p>
   </section>
   <div class="workspace">
     <aside class="panel settings"><h2>设置实验条件</h2>
@@ -84,6 +85,51 @@
       </details>
     </section>
   </div>
+  <section class="panel recipe-panel" aria-labelledby="controller-title">
+    <p class="eyebrow">从发送策略，走到控制方法</p><h2 id="controller-title">想看看控制器是怎么学的吗？</h2>
+    <p class="scope">这里是一组独立实验，使用内置的一阶模型，让偏离的位置回到 0。MFAC 边运行边估计，ILC 用上一轮误差调整下一轮，强化学习先训练再测试。下面的参数与上方的发送策略比较分别设置。</p>
+    <form id="controller-settings" class="recipe-form">
+      <label>先试哪种方法<select name="method"><option value="ilc">ILC：同一个任务多做几轮</option><option value="mfac">MFAC：边运行边估计</option><option value="rl">强化学习：训练后再测试</option><option value="all">三种都运行，分开看结果</option></select></label>
+      <label>每次模拟多少秒<input name="duration" type="number" min="0.2" max="2" step="0.2" value="1.2" required></label>
+      <label>初始位置偏差<input name="initial_position" type="number" min="-1.5" max="1.5" step="0.1" value="1" required></label>
+      <fieldset data-method="mfac"><legend>MFAC 怎么调整</legend>
+        <label>初始响应估计（phi0）<input name="phi0" type="number" step="0.001" value="0.02"></label>
+        <label>每次调整的幅度（rho）<input name="rho" type="number" min="0.001" max="1" step="0.05" value="0.5"></label>
+        <p class="hint">初始估计是你给定的先验，不是从模型真值中偷读的参数。</p>
+      </fieldset>
+      <fieldset data-method="ilc"><legend>ILC 多做几轮</legend>
+        <label>重复多少轮<input name="ilc_trials" type="number" min="2" max="30" step="1" value="12"></label>
+        <label>上一轮误差用多大幅度修正（学习增益）<input name="ilc_gain" type="number" min="0" max="20" step="0.1" value="2"></label>
+      </fieldset>
+      <fieldset data-method="rl"><legend>强化学习先训练，再测试</legend>
+        <label>训练多少个种子<input name="training_count" type="number" min="1" max="128" step="1" value="32"></label>
+        <label>训练种子从哪里开始<input name="training_start" type="number" min="0" max="4294967295" step="1" value="100"></label>
+        <label>测试种子，用英文逗号分隔<input name="evaluation_seeds" type="text" value="1001,1002,1003"></label>
+        <label>测试时最多发送多少<select name="budget_fraction"><option value="0">不发消息</option><option value="0.25">采样次数的 25%</option><option value="0.5" selected>采样次数的 50%</option><option value="1">与采样次数相同</option></select></label>
+        <label>测试消息延迟几个步长<input name="delay_steps" type="number" min="0" max="10" step="1" value="2"></label>
+        <label>测试丢包概率<input name="loss_probability" type="number" min="0" max="1" step="0.05" value="0.05"></label>
+        <p class="hint">种子是随机数的编号；训练按起始编号连续取值，测试种子必须另选。测试初始位置也由种子生成，范围为 −1.5 到 1.5。测试时还加入测量噪声 0.005、输入扰动 0.01；这些条件与训练不同，并不保证策略能适应。</p>
+      </fieldset>
+      <p class="hint recipe-wide">每步为 20 ms。MFAC、ILC 和强化学习训练均使用完整、无延迟、无丢包、无噪声的测量。测试不会继续学习。网页只提供有限规模的教学实验，完整参数会随结果保存。</p>
+      <button id="controller-run" type="submit">运行选中的实验</button>
+    </form>
+    <p id="controller-status" role="status" aria-live="polite">正在准备默认设置…</p>
+    <div id="controller-output" hidden></div>
+  </section>
+  <section class="panel recipe-panel" aria-labelledby="saved-policy-title">
+    <h2 id="saved-policy-title">保存的策略，拿出来再测一次</h2>
+    <p class="scope">载入完整的 policy-checkpoint.json，用新种子测试，不需要重新训练。模型、时间尺度和输入上限会沿用保存时的设置；这里支持内置一阶模型，暂不接收 Python 代码或自定义模型。</p>
+    <form id="saved-policy-settings" class="recipe-form">
+      <label>选择保存的策略文件<input name="checkpoint" type="file" accept=".json,application/json"></label>
+      <label>新的测试种子，用英文逗号分隔<input name="seeds" type="text" value="2001,2002,2003" required></label>
+      <button type="button" id="use-latest-policy">使用刚才实验保存的策略</button>
+      <button type="submit">只测试，不训练</button>
+    </form>
+    <p id="saved-policy-source" class="hint">还没有载入策略。请选文件，或先运行上面的强化学习实验。</p>
+    <p id="saved-policy-status" role="status" aria-live="polite">等待选择策略</p>
+    <div id="saved-policy-output" hidden></div>
+    <p class="hint">每次请另选种子，已有训练和测试种子会随策略保留。编号不同本身不证明统计独立；如果你根据这些结果改了参数，就要把它们记为探索，再另定测试方案。</p>
+  </section>
 </main>
 <footer>SparsiLoop · 在本机运行，不需要账户、API 密钥或 GPU。源码已公开，目前提供开发原型，尚无版本下载包。</footer>
 </body></html>
