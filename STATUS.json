@@ -1,0 +1,73 @@
+{
+  "project": "SparsiLoop",
+  "module": "event_control_lab",
+  "date": "2026-10-22",
+  "version": "0.0.1",
+  "stage": "local_prototype_with_pinned_public_pid_recipe",
+  "branch": "work/simple-pid-integration",
+  "remote_repository_created": false,
+  "publicly_released": false,
+  "scientific_claims_verified": false,
+  "human_adoption_verified": false,
+  "verification": {
+    "distinct_backend_tests_passed": 44,
+    "backend_test_execution": "44 tests passed from the grid-check sdist at 4b8709f; current core and base test bytes verified identical, not rerun",
+    "historical_browser_checks_passed": 11,
+    "historical_browser_check_execution": "10 end-to-end checks plus one axis check on b9021669; not counted as new tests",
+    "branding_layout_viewports_passed": [928, 390, 320],
+    "branding_browser_evidence": "artifacts/grid-check-20261022/branding-layout.json",
+    "lint": "Ruff passed; JavaScript unchanged since prior syntax checks",
+    "fresh_offline_package_install": "passed at the unchanged-core baseline",
+    "installed_runtime_result_matches_source": true,
+    "compare_study_grid_results_match_installed_package": true,
+    "both_command_entrypoints": true,
+    "installed_grid_cli_and_http_apis": true,
+    "core_baseline_package_qa": "artifacts/grid-check-20261022/final-package-qa/summary.json",
+    "package_scope": "Local Windows/Python 3.12.5 candidate; not published or inferred to other environments",
+    "core_baseline_wheel_sha256": "933a69419c35aeba221b50ec7ff1a5873ca8acfa32160ae85998d5ec15acccfc",
+    "core_baseline_sdist_sha256": "62a8fc1cfffe7c0a78c1f35889d9784c995fc1360b6ca37ae1316a3818c10d31"
+  },
+  "ci": {
+    "configured_os": ["ubuntu-latest", "windows-latest"],
+    "configured_python": ["3.10", "3.12", "3.14"],
+    "matrix_jobs": 6,
+    "optional_controller_jobs": 1,
+    "total_jobs": 7,
+    "yaml_and_matrix_validated": true,
+    "executed": false,
+    "dependency": "Create and populate the independent repository"
+  },
+  "grid_check": {
+    "analysis": "deterministic-nested-grid-check-v1",
+    "fixed_teaching_runs": 18,
+    "completed": 18,
+    "physical_delay_seconds": 0.04,
+    "random_processes_supported": false,
+    "convergence_certified": false,
+    "fixed_case_summary": "artifacts/grid-check-20261022/fixed-case-summary.json"
+  },
+  "historical_traffic_study": {
+    "analysis": "posthoc-attempted-packet-reference-v1",
+    "fixed_case_pairs": 24,
+    "fixed_case_eligible_pairs": 24,
+    "threshold_selection": "all supplied values retained; no winner selected",
+    "prospective_performance_verified": false
+  },
+  "public_controller_recipe": {
+    "library": "simple-pid",
+    "version": "2.0.1",
+    "license": "MIT",
+    "upstream_source_match": true,
+    "optional_dependency_hash_locked": true,
+    "core_dependency_added": false,
+    "fresh_source_integration_tests_passed": 7,
+    "fixed_teaching_runs_completed": 6,
+    "core_and_base_tests_unchanged": true,
+    "qa": "artifacts/pid-integration-20261022/summary.json",
+    "wheel_sha256": "59c726c5614b4ae5be4f659436a40a9f752748ebf956af56acef3f4eb5893b4f",
+    "sdist_sha256": "654ea6ad113ec0afcef21a2b8320cc50731d472bc2638c252fb86cfdd67c0047",
+    "human_adoption_evidence": false
+  },
+  "next_delivery": "Independent-repository installation and hosted CI; prospective comparison remains unverified",
+  "prior_project": "RankProbe v0.1.0a4 exists in coursework repository; independent migration still pending"
+}

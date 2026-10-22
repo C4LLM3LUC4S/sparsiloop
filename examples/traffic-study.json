@@ -1,0 +1,14 @@
+{
+  "config": {
+    "plant": "scalar",
+    "duration": 8.0,
+    "dt": 0.02,
+    "budget": 80,
+    "delay_steps": 2,
+    "loss_probability": 0.05,
+    "measurement_noise": 0.005,
+    "process_noise": 0.01
+  },
+  "thresholds": [0.02, 0.06, 0.12, 0.24],
+  "seeds": [20261022, 20261023, 20261024]
+}

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SparsiLoop · 事件触发控制实验室</title>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/study.js" defer></script>
+</head>
+<body>
+<header><a class="brand" href="/">SparsiLoop<span>EVENT-TRIGGERED CONTROL LAB</span></a><span class="badge">本地原型 · 0.0.1</span></header>
+<main>
+  <section class="intro"><p class="eyebrow">把通信开销放回控制实验</p>
+    <h1>少发消息，<br>还能控制好吗？</h1>
+    <p class="lead">给三种策略相同的发送上限，看看偏差、消息数量和观测延迟怎样一起变化。</p>
+  </section>
+  <div class="workspace">
+    <aside class="panel settings"><h2>设置一次实验</h2>
+      <form id="settings">
+        <label>被控对象<select name="plant"><option value="scalar">一阶不稳定系统</option><option value="double_integrator">位置—速度系统</option></select></label>
+        <label>最多发送消息 <output id="budget-value">80 次</output><input name="budget" type="range" min="0" max="200" step="1" value="80"></label>
+        <label>单向延迟 <output id="delay-value">40 ms</output><input name="delay_steps" type="range" min="0" max="20" step="1" value="2"></label>
+        <label>丢包概率 <output id="loss-value">5%</output><input name="loss_probability" type="range" min="0" max="1" step="0.05" value="0.05"></label>
+        <details><summary>触发参数与重复实验</summary>
+          <label>绝对变化门槛<input name="threshold" type="number" min="0" max="2" step="0.01" value="0.06"></label>
+          <label>相对门槛系数<input name="relative_threshold" type="number" min="0" max="2" step="0.05" value="0.15"></label>
+          <label>测量噪声标准差<input name="measurement_noise" type="number" min="0" max="2" step="0.005" value="0.005"></label>
+          <label>输入扰动标准差<input name="process_noise" type="number" min="0" max="2" step="0.01" value="0.01"></label>
+          <label>随机种子<input name="seed" type="number" min="0" max="4294967295" step="1" value="20261022"></label>
+        </details>
+        <button id="run" type="submit">运行比较 <span>↗</span></button>
+        <p class="hint">8 秒仿真，每 20 ms 检查一次。修改设置后点击运行；相同种子可重复。</p>
+      </form>
+    </aside>
+    <section class="results" aria-label="比较结果">
+      <div class="result-heading"><h2>同一发送上限下的三种选择</h2><span id="status" role="status" aria-live="polite">准备运行</span></div>
+      <p id="scope" class="scope">先看偏差，再看实际用了多少条消息。更少的消息不必然意味着更好的控制。</p>
+      <div class="cards" id="cards"></div>
+      <section class="panel plot-panel"><div class="plot-heading"><div><h3>偏差怎样随时间变化</h3><p>目标位置为 0；曲线越靠近虚线，位置偏差越小。</p></div><div id="legend" class="legend"></div></div>
+        <canvas id="trajectory" width="1000" height="300" role="img" aria-label="三种策略的位置偏差随时间变化"></canvas>
+        <p class="hint">真值曲线用于事后评估，控制器只能读取已经到达的测量消息。</p>
+      </section>
+      <section class="panel details-panel"><h3>每条消息都对得上</h3>
+        <div class="table-scroll" tabindex="0"><table><thead><tr><th>策略</th><th>已发送</th><th>已到达</th><th>已丢失</th><th>仍在途</th><th>控制器调用</th><th>变化量检测</th></tr></thead><tbody id="ledger"></tbody></table></div>
+        <p class="hint">已发送 = 已到达 + 已丢失 + 仍在途。丢包也占用发送预算。调用次数与检测次数不是实测 CPU 耗时。</p>
+      </section>
+      <div class="downloads"><button type="button" id="download-json" disabled>下载完整实验 JSON</button><button type="button" id="download-csv" disabled>下载轨迹 CSV</button><span>包含参数、原始轨迹及可重复的随机输入。</span></div>
+      <section class="panel study-panel" aria-labelledby="study-title">
+        <p class="eyebrow">再核对实际通信量</p><h2 id="study-title">如果周期策略也只发这么多条呢？</h2>
+        <p class="scope">先运行事件策略，再用其实际发送数设置同一随机输入下的周期参考。每个门槛和种子都会保留。这是事后对照，参考预算来自已完成的事件运行。</p>
+        <form id="study-settings">
+          <label>变化门槛列表<input name="thresholds" type="text" value="0.02, 0.06, 0.12, 0.24" required aria-describedby="study-help"></label>
+          <label>随机种子列表<input name="seeds" type="text" value="20261022, 20261023, 20261024" required aria-describedby="study-help"></label>
+          <button type="submit" id="study-run">扫描并生成通信量对照</button>
+        </form>
+        <p id="study-help" class="hint">用英文逗号分隔。此处列表分别替代单次实验的变化门槛和随机种子；其余参数使用左侧设置。扫描不自动挑选最优门槛。</p>
+        <p id="study-status" role="status" aria-live="polite">尚未扫描</p>
+        <div id="study-output" hidden>
+          <p id="study-scope" class="scope"></p>
+          <p class="hint">横轴：实际尝试发送次数（含丢包）；纵轴：位置 RMSE。实心点为事件策略，空心点为各自的周期参考。未完成项保留在表中，不画成零分。</p>
+          <div class="legend"><span class="study-absolute">绝对变化</span><span class="study-relative">相对变化</span><span class="study-periodic">空心：周期参考</span></div>
+          <canvas id="traffic-plot" width="1000" height="300" role="img" aria-label="实际消息数与位置偏差散点图，逐项数值见下表"></canvas>
+          <p id="study-counts" class="scope"></p>
+          <h3>按门槛汇总 · 差值为事件减周期</h3>
+          <p class="hint">只有全部请求种子都可比，才显示全部种子的平均差值；负值表示本组事件偏差较小。宽表可横向滑动。</p>
+          <div class="table-scroll" tabindex="0"><table><thead><tr><th>事件策略</th><th>门槛</th><th>可比 / 请求种子</th><th>全部种子平均差值</th><th>事件 / 周期未完成</th><th>发送量未对齐</th></tr></thead><tbody id="study-summary"></tbody></table></div>
+          <details><summary>展开全部逐项结果与不可用原因</summary>
+            <div class="table-scroll" tabindex="0"><table><thead><tr><th>事件策略</th><th>门槛</th><th>种子</th><th>发送数：事件 / 周期</th><th>事件 RMSE</th><th>周期 RMSE</th><th>差：事件 − 周期</th><th>配对状态</th></tr></thead><tbody id="study-pairs"></tbody></table></div>
+          </details>
+          <div class="downloads"><button type="button" id="study-json">下载完整扫描 JSON</button><button type="button" id="study-csv">下载逐项对照 CSV</button></div>
+          <p class="hint">相同发送数不代表相同到达数、观测年龄、计算量、字节或能耗。配对预算逐个种子事后确定，不能代替预先调参、独立测试或普遍优越性证据。</p>
+        </div>
+      </section>
+      <details class="panel protocol"><summary>本次比较的约定与范围</summary>
+        <ul><li>只模拟“传感器 → 控制器”这一条上行链路。控制器到执行器为理想本地连接。</li>
+          <li>三种策略拥有相同的最大发送次数，并非相同的实际发送次数。周期策略把机会均匀分布在整个时段；两种事件策略按变化量与最长静默时间决定发送。</li>
+          <li>传感器每个检查时刻都采样。固定反馈控制器只在消息到达时计算输入，之后保持输入；三种策略共用相同增益。</li>
+          <li>延迟按检查步数计算。噪声和丢包按时间步生成，三种策略使用同一组外部随机输入。</li>
+          <li>初始消息计入预算；终点不再发送，终点及之后才到达的消息记为在途。预算用完后不会偷偷补发。</li>
+          <li>这是两个归一化教学对象上的采样触发示例，不构成稳定性证明、物理设备验证或论文算法复现。低于数值上限也不表示系统安全。</li>
+        </ul>
+      </details>
+    </section>
+  </div>
+</main>
+<footer>SparsiLoop · 本地计算，不需要账户、API 密钥或 GPU。开发原型，尚未公开发行。</footer>
+</body></html>
