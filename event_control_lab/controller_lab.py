@@ -218,7 +218,14 @@ def export_controller_lab(result, destination):
             values = [method, stage, label, run["policy"], run["status"], "" if value is None else value,
                       *[run["packets"][key] for key in ("attempted", "dropped", "delivered", "in_flight")]]
             writer.writerow(values)
-            shown = values[:5] + ["不可用 / N/A" if value is None else f"{value:.6g}"] + values[6:]
+            stage_label = {"online": "在线估计", "trial": "重复试次", "training": "训练",
+                           "evaluation_trained": "冻结评测：已训练", "evaluation_untrained": "评测：未训练参考",
+                           "evaluation_linear_feedback": "评测：固定反馈参考"}[stage]
+            status_label = {"complete": "完整结束", "state_limit": "提前停止：状态超限",
+                            "controller_error": "控制器错误"}.get(run["status"], run["status"])
+            policy_label = {"periodic": "周期", "absolute": "绝对变化", "relative": "相对变化"}[run["policy"]]
+            shown = [method.upper(), stage_label, label, policy_label, status_label,
+                     "不可用 / N/A" if value is None else f"{value:.6g}"] + values[6:]
             row = "<tr>" + "".join(f"<td>{html.escape(str(x))}</td>" for x in shown) + "</tr>"
             (training_table if stage == "training" else table).append(row)
     with (destination / "trajectories.csv").open("x", encoding="utf-8", newline="") as handle:
@@ -241,16 +248,18 @@ section{background:white;border:1px solid #ccdce4;border-radius:12px;padding:20p
 <h1>SparsiLoop · 经典控制案例 / Controller recipes</h1>
 <p>先确认阶段和发送条件，再比较同一指标。此页是教学案例，没有选出通用“最佳控制器”。</p>
 <section><h2>如何读这份结果</h2><ul>
-<li><b>MFAC / online：</b>只用已收到的位置和自己施加的输入，在线估计响应；本例要求完整规则采样。</li>
-<li><b>ILC / trial：</b>每轮从相同状态重来，用上一轮收到的误差修正下一轮输入。看第 1 轮到最后一轮，所有轮次均保留。</li>
-<li><b>RL / evaluation_trained：</b>强化学习训练结束后冻结策略，在未参与训练的种子上评测。untrained 是未训练对照，linear_feedback 是固定反馈参考。</li>
+<li><b>MFAC / 在线估计：</b>只用已收到的位置和自己施加的输入，在线估计响应；本例要求完整规则采样。</li>
+<li><b>ILC / 重复试次：</b>每轮从相同状态重来，用上一轮收到的误差修正下一轮输入。看第 1 轮到最后一轮，所有轮次均保留。</li>
+<li><b>RL / 冻结评测：</b>强化学习训练结束后冻结策略，在未参与训练的种子上评测；同时保留未训练对照与固定反馈参考。</li>
 <li>训练分数在下方单列，不充当评测结果。RMSE 越小表示该时域内位置偏差越小；还需核对失败和实际消息数。</li>
 <li>MFAC、ILC 的规则采样与 RL 的网络评测条件不同，不据此跨方法排榜。不可用不是零。</li></ul>
 <p><a href="controllers.json">完整参数、学习/训练记录与策略</a> · <a href="summary.csv">汇总 CSV</a> · <a href="trajectories.csv">全部轨迹 CSV</a></p></section>
-<section><h2>在线、重复试次与独立种子评测</h2><div class="scroll"><table>"""
+<section><h2>在线、重复试次与独立种子评测</h2><p>窄屏可横向滚动表格；键盘可聚焦表格区域后使用方向键。</p><div class="scroll" tabindex="0" role="region" aria-label="控制案例结果表"><table>"""
     page += header + "".join(table) + "</table></div></section>"
     if training_table:
-        page += '<section><details><summary>展开全部训练轮次 / All training episodes</summary><div class="scroll"><table>'
+        page += '<section><details><summary>展开全部训练轮次 / All training episodes</summary><div class="scroll" tabindex="0" role="region" aria-label="全部训练记录表"><table>'
         page += header + "".join(training_table) + "</table></div></details></section>"
+    if "rl" in result["cases"]:
+        page += '<p><a href="policy.json">单独下载冻结策略 / Frozen policy checkpoint</a></p>'
     page += '<p>Independent implementation of teaching recipes. Not a stability, optimality, hardware or paper-reproduction certificate.</p></html>'
     (destination / "report.html").write_text(page, encoding="utf-8")

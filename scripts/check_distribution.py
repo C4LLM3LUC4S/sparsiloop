@@ -166,7 +166,7 @@ def main():
                    ("controllers.json", "summary.csv", "trajectories.csv", "report.html")):
             raise ValueError("installed controller CLI omitted required outputs")
         extracted = extract_source(archive, base / "fresh source")
-        for path in ("README.md", "README.en.md", "BRANDING.md", "docs/grid-check.md",
+        for path in ("README.md", "README.en.md", "BRANDING.md", "START_HERE.md", "quickstart.py", "docs/grid-check.md",
                      "examples/grid-check.json", "scripts/check_distribution.py"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
@@ -174,6 +174,9 @@ def main():
                                extracted, logs, "extracted-origin").stdout.strip()
         if not within_directory(extracted_origin, extracted):
             raise ValueError("source-distribution test origin is not the extracted source")
+        run([str(python), "-I", str(extracted / "quickstart.py"), "--mode", "controllers",
+             "--method", "ilc", "--no-open", "--out", str(base / "extracted quickstart output")],
+            base, logs, "extracted-quickstart")
         tests = run([str(python), "-m", "unittest", "discover", "-s", "tests", "-v"],
                     extracted, logs, "fresh-source-tests")
         count = re.search(r"Ran (\d+) tests", tests.stderr)

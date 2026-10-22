@@ -12,6 +12,8 @@ Integrating an existing controller? The [pinned simple-pid recipe](docs/simple-p
 
 ## Run locally
 
+Shortest source-preview path: extract the repository, then `python quickstart.py` for the web lab or `python quickstart.py --mode controllers` for static learning reports. It needs no installation or environment activation. See [Start here](START_HERE.md).
+
 Download and extract this repository's source ZIP, or clone `https://github.com/C4LLM3LUC4S/sparsiloop.git`, then enter the project folder.
 
 Python 3.10 or later. The simulator and local web server use only the Python standard library; no account, model, API key or GPU is required. From this source folder:
