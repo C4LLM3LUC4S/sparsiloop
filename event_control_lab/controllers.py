@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
+import random
 
 
 def number(value, name, low, high):
@@ -218,6 +219,10 @@ class QTable:
                 raise ValueError("invalid or duplicate Q checkpoint state")
             result.values[tuple(state)] = tuple(number(x, "Q value", -1e100, 1e100) for x in row)
         return result
+
+
+def initial_position(seed):
+    return random.Random(seed ^ 0x494E4954).uniform(-1.5, 1.5)
 
 
 class QController:

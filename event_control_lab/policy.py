@@ -6,8 +6,7 @@ import json
 from pathlib import Path
 
 from . import controllers, engine, models
-from .controllers import QController, QTable
-from .controller_lab import initial_position
+from .controllers import QController, QTable, initial_position
 from .engine import Config, compare
 
 
@@ -23,7 +22,7 @@ def checkpoint_digest(value):
 def source_identity():
     paths = {name: Path(module.__file__) for name, module in
              (("engine", engine), ("models", models), ("controllers", controllers))}
-    paths.update(controller_lab=Path(__file__).with_name("controller_lab.py"), policy=Path(__file__))
+    paths.update(policy=Path(__file__))
     return {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in paths.items()}
 
 
@@ -133,23 +132,6 @@ def read_checkpoint(path):
 
 
 def export_evaluation(result, destination):
-    # Reuse the existing offline report writer without pretending that training ran again.
-    from .controller_lab import export_controller_lab
+    from .controller_lab import export_policy_evaluation
 
-    view = {"cases": {"rl": {"training": [], "frozen_table": result["checkpoint"]["table"],
-                              "evaluation": [{"seed": case["seed"], "trained": case["policy"],
-                                              "linear_feedback": case["linear_feedback"]}
-                                             for case in result["cases"]]}},
-            "evaluation_only": True, "source_checkpoint": result["checkpoint"],
-            "evaluation_seeds": result["evaluation_seeds"],
-            "frozen_before_sha256": result["frozen_before_sha256"],
-            "frozen_after_sha256": result["frozen_after_sha256"]}
-    export_controller_lab(view, destination)
-    folder = Path(destination)
-    saved = dict(result["checkpoint"])
-    saved["previous_evaluation_seeds"] = saved["previous_evaluation_seeds"] + result["evaluation_seeds"]
-    saved["checkpoint_sha256"] = checkpoint_digest(saved)
-    (folder / "policy-checkpoint.json").write_text(json.dumps(saved, indent=2, allow_nan=False) + "\n",
-                                                 encoding="utf-8")
-    (folder / "evaluation.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
-                                            encoding="utf-8")
+    export_policy_evaluation(result, destination)

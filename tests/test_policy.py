@@ -62,6 +62,15 @@ class PolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "policy-checkpoint.json"):
             load_checkpoint(self.saved["table"])
 
+    def test_report_only_change_does_not_change_policy_context(self):
+        result = deepcopy(self.result)
+        result["source_sha256"]["controller_lab"] = "different report layout"
+        saved = checkpoint(result)
+        load_checkpoint(saved)
+        with patch("event_control_lab.policy.source_identity", return_value={}):
+            with self.assertRaisesRegex(ValueError, "source differs"):
+                load_checkpoint(saved)
+
     def test_input_limit_and_work_budget_are_checked_before_running(self):
         with self.assertRaisesRegex(ValueError, "input_limit"):
             evaluate_policy(self.saved, [2001], replace(self.spec.config, input_limit=2))
