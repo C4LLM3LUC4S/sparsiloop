@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from . import controllers, engine, models
-from .controllers import QController, QTable, initial_position
+from .controllers import QController, QTable, canonical_json, initial_position
 from .engine import Config, compare
 
 
@@ -15,8 +15,7 @@ FORMAT = "sparsiloop-frozen-policy-v1"
 
 def checkpoint_digest(value):
     body = {key: item for key, item in value.items() if key != "checkpoint_sha256"}
-    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"),
-                                     allow_nan=False).encode()).hexdigest()
+    return hashlib.sha256(canonical_json(body).encode()).hexdigest()
 
 
 def source_identity():

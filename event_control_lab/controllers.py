@@ -17,6 +17,19 @@ def clip(value, limit):
     return max(-limit, min(limit, value))
 
 
+def canonical_json(value):
+    """Hash JSON numbers by value: a browser may write 1.0 as 1."""
+    def normalize(item):
+        if isinstance(item, dict):
+            return {key: normalize(child) for key, child in item.items()}
+        if isinstance(item, (list, tuple)):
+            return [normalize(child) for child in item]
+        if type(item) is float and item.is_integer():
+            return int(item)
+        return item
+    return json.dumps(normalize(value), sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
 def received(observation, config, last=None, regular=False):
     values, sample, arrival = observation.values, observation.sample_time, observation.arrival_time
     if (len(values) != len(config.initial_state)
@@ -192,7 +205,7 @@ class QTable:
                 "rows": [{"state": list(key), "q": list(self.values[key])} for key in sorted(self.values)]}
 
     def fingerprint(self):
-        body = json.dumps(self.snapshot(), sort_keys=True, separators=(",", ":"), allow_nan=False)
+        body = canonical_json(self.snapshot())
         return hashlib.sha256(body.encode()).hexdigest()
 
     @classmethod

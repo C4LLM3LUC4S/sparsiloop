@@ -71,6 +71,22 @@ class PolicyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source differs"):
                 load_checkpoint(saved)
 
+    def test_browser_json_integer_spelling_keeps_numeric_identity(self):
+        def browser_numbers(value):
+            if isinstance(value, dict):
+                return {key: browser_numbers(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [browser_numbers(item) for item in value]
+            return int(value) if type(value) is float and value.is_integer() else value
+        value = browser_numbers(self.saved)
+        table, _, _ = load_checkpoint(value)
+        self.assertEqual(table.fingerprint(), self.saved["table_sha256"])
+        self.assertEqual(checkpoint_digest(value), self.saved["checkpoint_sha256"])
+        changed = deepcopy(value)
+        changed["training_config"]["dt"] = 0.04
+        with self.assertRaisesRegex(ValueError, "checksum"):
+            load_checkpoint(changed)
+
     def test_input_limit_and_work_budget_are_checked_before_running(self):
         with self.assertRaisesRegex(ValueError, "input_limit"):
             evaluate_policy(self.saved, [2001], replace(self.spec.config, input_limit=2))
