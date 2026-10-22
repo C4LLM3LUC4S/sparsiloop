@@ -2,6 +2,7 @@ from copy import deepcopy
 from dataclasses import replace
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -81,11 +82,13 @@ class PolicyTests(unittest.TestCase):
             export_controller_lab(self.result, training)
             source = training / "policy-checkpoint.json"
             original = source.read_bytes()
-            out = root / "new evaluation"
+            out = root / "new 评测"
             command = [sys.executable, "-m", "event_control_lab", "evaluate-policy", str(source),
                        "--seeds", "2001,2002", "--out", str(out)]
-            process = subprocess.run(command, capture_output=True, timeout=30)
+            environment = dict(os.environ, PYTHONIOENCODING="ascii")
+            process = subprocess.run(command, capture_output=True, timeout=30, env=environment)
             self.assertEqual(process.returncode, 0, process.stderr)
+            self.assertIn(str(out), process.stdout.decode("utf-8"))
             result = json.loads((out / "evaluation.json").read_text(encoding="utf-8"))
             self.assertEqual(result["checkpoint_file_sha256"], hashlib.sha256(original).hexdigest())
             self.assertEqual(source.read_bytes(), original)

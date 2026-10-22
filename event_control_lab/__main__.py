@@ -2,6 +2,7 @@ import argparse
 import csv
 import json
 from pathlib import Path
+import sys
 
 from . import __version__
 from .engine import Config, compare
@@ -29,6 +30,9 @@ def export(result, destination):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     parser = argparse.ArgumentParser(description="SparsiLoop — local communication experiments")
     parser.add_argument("--version", action="version", version=f"SparsiLoop {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
