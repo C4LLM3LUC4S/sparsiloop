@@ -1,8 +1,8 @@
 # SparsiLoop · Event-triggered control lab
 
-**Compare control error with the messages it actually costs.**
+**What happens to control error when you send fewer sensor messages?**
 
-SparsiLoop is a local lab for students and control researchers to compare event-triggered and periodic feedback under packet budgets, delay and loss. Inspect every message, keep failed cases visible and export reproducible trajectories and metrics.
+Try it on your computer: set a message limit, delay and loss probability, then compare regular sending with sending when measurements change. See where errors grow, check which messages arrived and save the results for analysis. The teaching models give you a starting point; a Python adapter lets you bring your own model.
 
 [中文](README.md) · [Protocol](docs/protocol.md) · [Post-hoc traffic study](docs/traffic-study.md) · [Grid check](docs/grid-check.md)
 

@@ -6,12 +6,12 @@ const studyNumber = value => value === null ? "—" : Number(value).toFixed(5);
 const studyNames = {absolute: "绝对变化", relative: "相对变化"};
 const reasonNames = {
  event_failed: "事件运行未完成", reference_failed: "周期参考未完成",
- attempted_count_mismatch: "发送量未对齐", exogenous_trace_mismatch: "随机输入不同"
+ attempted_count_mismatch: "发送次数不同", exogenous_trace_mismatch: "随机输入不同"
 };
 
 function staleStudy() {
  if (trafficStudy) {
-  studyStatus.textContent = "设置已修改，仍显示上次扫描；请重新扫描";
+  studyStatus.textContent = "设置已修改，下方仍是上次对照；点击“运行这组对照”后才会更新";
   studyStatus.className = "";
  }
 }
@@ -22,7 +22,7 @@ function studyList(name) {
  const parts = studyForm.elements[name].value.split(",").map(value => value.trim());
  if (parts.some(value => value === "")) throw Error("列表中有空值，请用英文逗号分隔数字");
  const values = parts.map(Number);
- if (values.some(value => !Number.isFinite(value))) throw Error("列表只能填写有限数字");
+ if (values.some(value => !Number.isFinite(value))) throw Error("请填写普通数字，不能使用 NaN 或无穷大");
  const label = name === "seeds" ? "随机种子" : "变化门槛";
  const maximum = name === "seeds" ? 5 : 8;
  if (values.length > maximum) throw Error(`${label}每次最多 ${maximum} 个`);
@@ -42,19 +42,19 @@ studyForm.addEventListener("submit", async event => {
  try {
   const spec = {config, thresholds: studyList("thresholds"), seeds: studyList("seeds")};
   window.labUI.setBusy(true);
-  studyStatus.textContent = "正在扫描与核对消息账本…";
+  studyStatus.textContent = "正在按每组参数运行，并统计发送情况…";
   studyStatus.className = "";
   const response = await fetch("/api/study", {
    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(spec)
   });
   const result = await response.json();
-  if (!response.ok) throw Error(result.error || "扫描未完成");
+  if (!response.ok) throw Error(result.error || "这组对照未能生成");
   trafficStudy = result;
   document.querySelector("#study-output").hidden = false;
   renderStudy();
-  studyStatus.textContent = "扫描完成，所有请求的案例均已保留";
+  studyStatus.textContent = "对照结果已生成，失败项也已保留；请先看能比较多少组";
  } catch (error) {
-  studyStatus.textContent = `未完成：${error.message}${trafficStudy ? "；仍显示上次扫描" : ""}`;
+  studyStatus.textContent = `这次没有生成新对照：${error.message}${trafficStudy ? "。下方仍是上次结果" : ""}。请检查参数；连接中断时，确认终端仍在运行后再试。`;
   studyStatus.className = "error";
  } finally {
   window.labUI.setBusy(false);
@@ -72,13 +72,13 @@ function studyRows() {
 function renderStudy() {
  const {config, seeds, thresholds} = trafficStudy.spec;
  document.querySelector("#study-scope").textContent =
-  `扫描参数：${config.plant === "scalar" ? "一阶对象" : "位置—速度对象"}，${config.duration} 秒，每步 ${config.dt} 秒；事件发送上限 ${config.budget}，延迟 ${Math.round(config.delay_steps * config.dt * 1000)} ms，丢包 ${Math.round(config.loss_probability * 100)}%；门槛 ${thresholds.join(" / ")}，种子 ${seeds.join(" / ")}。`;
+  `这次实验：${config.plant === "scalar" ? "一阶对象" : "位置—速度对象"}，${config.duration} 秒，每步 ${config.dt} 秒；事件发送上限 ${config.budget}，延迟 ${Math.round(config.delay_steps * config.dt * 1000)} ms，丢包 ${Math.round(config.loss_probability * 100)}%；门槛 ${thresholds.join(" / ")}，种子 ${seeds.join(" / ")}。`;
  const eligible = trafficStudy.pairs.filter(pair => pair.eligible).length;
  const failedEvents = trafficStudy.pairs.filter(pair => pair.unavailable_reasons.includes("event_failed")).length;
  const failedReferences = trafficStudy.pairs.filter(pair => pair.unavailable_reasons.includes("reference_failed")).length;
  const unmatched = trafficStudy.pairs.filter(pair => !pair.traffic_matched).length;
  document.querySelector("#study-counts").textContent =
-  `共 ${trafficStudy.pairs.length} 项配对，${eligible} 项可比；事件未完成 ${failedEvents} 项，周期未完成 ${failedReferences} 项，发送量未对齐 ${unmatched} 项。这些计数可能重叠；不可比项的差值不可用。`;
+  `共 ${trafficStudy.pairs.length} 组对照，其中 ${eligible} 组能比较误差。事件策略未跑完 ${failedEvents} 组，周期策略未跑完 ${failedReferences} 组，发送次数不同 ${unmatched} 组。同一组可能同时有几种问题；不能比较的项目不计算差值。`;
  const summaryBody = document.querySelector("#study-summary");
  summaryBody.replaceChildren();
  for (const summary of trafficStudy.summaries) {

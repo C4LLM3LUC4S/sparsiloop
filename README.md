@@ -1,8 +1,8 @@
 # SparsiLoop · 事件触发控制实验室
 
-**把控制误差与真实通信开销放在一起比较。**
+**少发一些传感器消息，会让控制效果变差多少？**
 
-面向控制与机器人学习者的本地实验工具：调整通信预算、延迟和丢包，比较事件触发与周期控制，追踪每条消息，并导出可复核的轨迹与指标。
+SparsiLoop 帮你在电脑上试一试：调整消息发送次数、延迟和丢包，比较定期发送与按变化发送时的控制误差。你可以查看消息是否到达、误差在哪里变大，再保存完整数据继续分析。适合控制与机器人课程中的实验，也可作为接入自己模型的起点。
 
 A local lab to compare event-triggered and periodic control under communication budgets, delay and packet loss. Inspect every message and export reproducible trajectories and metrics.
 
@@ -34,7 +34,7 @@ python -m event_control_lab serve --port 8788
 python -m event_control_lab controller-lab --out runs/controllers
 ```
 
-打开新目录中的 `report.html`：一次运行得到 MFAC 在线估计、ILC 重复试次、强化学习训练后冻结评测。每轮数据和失败均保留；RL 同时给出未训练和固定反馈参考，不保证优于它们。三者首版均使用一阶教学对象，MFAC/ILC 要求完整规则采样；它们还不是通用的事件触发版本。可用 `--method mfac`、`ilc`、`rl` 单独运行，完整参数、公式与限制见 [经典控制案例](docs/classic-controllers.md)。
+打开新目录中的 `report.html`。MFAC 在运行时估计模型对输入的响应；ILC 反复执行同一个任务，用上一轮误差调整下一轮输入；强化学习先训练策略，再固定策略到新的随机种子上测试。每轮数据和失败均保留；RL 同时给出未训练和固定反馈参考，不保证优于它们。三者首版均使用一阶教学对象，MFAC/ILC 要求完整规则采样；它们还不是通用的事件触发版本。可用 `--method mfac`、`ilc`、`rl` 单独运行，完整参数、公式与限制见 [经典控制案例](docs/classic-controllers.md)。
 
 ## 保存可重复结果
 
@@ -65,7 +65,7 @@ result = compare(Config(), controller_factory=lambda config: MyController())
 
 ## 按实际通信量再比较一次
 
-网页下方可扫描多个门槛与种子：先记录事件策略的实际发送数，再生成同一随机输入下、相同尝试发送数的周期参考。失败项保留；参考提前停止导致发送数未对齐时，差值不可用。这是事后描述性对照，不能作为预先调参或普遍优越性的证据。
+在网页下方填写几组门槛和随机种子，就能批量比较。程序先记录事件策略的发送次数，再让周期策略按这个次数运行，两次使用相同的外部随机数。失败项保留；参考提前停止导致发送数未对齐时，差值不可用。这是事后描述性对照，不能作为预先调参或普遍优越性的证据。
 
 ```powershell
 python -m event_control_lab study --spec examples/traffic-study.json --out runs/traffic-check

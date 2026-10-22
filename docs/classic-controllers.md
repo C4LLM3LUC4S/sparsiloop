@@ -1,12 +1,14 @@
 # MFAC、ILC 与强化学习控制 / Classical controller recipes
 
-These are independently implemented teaching baselines, available from the installed wheel. They preserve the original fixed-feedback and optional simple-pid paths. No private research algorithms or parameters are used.
+想看看控制器是怎么逐步学会把对象带回目标位置的，可以从这三个案例开始。MFAC 边运行边估计，ILC 用上一轮的误差改进下一轮，强化学习先训练再测试。它们采用不同流程，适合分别观察学习过程，不适合按一张总榜比较优劣。
+
+These independently implemented teaching recipes show online adaptation, learning across repeated trials, and policy training followed by held-out evaluation. They also work from an installed wheel. The fixed-feedback and optional simple-pid paths remain available.
 
 ```powershell
 python -m event_control_lab controller-lab --out runs/controllers
 ```
 
-打开输出目录中的 `report.html`。它先解释在线、重复试次、训练和评测的区别，再列出完整结果；训练记录折叠显示。`controllers.json` 保存声明的配置、种子、每轮轨迹与外部输入、全部估计/学习更新、源码指纹及冻结 Q 表。`summary.csv` 为汇总，`trajectories.csv` 为全部轨迹，`policy.json` 可重新载入。输出目录必须是新目录。
+打开输出目录中的 `report.html`，先看“从哪里开始看”。想追溯每一步时，再展开训练记录，或查看 `controllers.json`；其中保存了参数、种子、轨迹、随机输入和学习更新。`summary.csv` 方便汇总分析，`trajectories.csv` 保留全部轨迹，`policy.json` 保存训练后的策略。每次请使用新目录，避免覆盖前一次实验。
 
 只运行一种：`--method mfac`、`--method ilc`、`--method rl`。默认 `all`。这三个案例目前均以一阶教学对象为起点；网页的原固定反馈比较仍支持两个对象。
 
