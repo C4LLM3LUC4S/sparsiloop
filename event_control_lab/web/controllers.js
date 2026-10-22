@@ -115,18 +115,23 @@
  }
  async function execute(prefix,path,payload) {
   const status = document.querySelector(`#${prefix}-status`);
+  const details = document.querySelector(`#${prefix}-error`); details.hidden=true;
   window.labUI.setBusy(true); status.className="";
   status.textContent = prefix === "controller" ? "正在运行实验并整理报告，请稍等…" : "正在加载保存的策略并测试；这次不会训练…";
   try {
    const response = await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-   const result = await response.json(); if (!response.ok) throw Error(result.error || "实验没能生成结果");
+   const result = await response.json();
+   if (!response.ok) {const error=Error(result.error || "实验没能生成结果");error.detail=result.detail;throw error;}
    display(prefix,result); status.textContent="新结果已生成。先核对有没有没跑完的项目，再看分数。";
   } catch (error) {
-   status.textContent=`这次没有生成新结果：${error.message}。${previous[prefix] ? "下方仍是上次结果。" : ""}请检查设置和策略文件；连接中断时，确认终端仍在运行后再试。`;
+   const message=error instanceof TypeError ? "没能连接到本地服务，请确认终端还在运行" : error.message;
+   status.textContent=`这次没有生成新结果：${message}${previous[prefix] ? " 下方仍是上次结果。" : ""}`;
+   details.hidden=!error.detail;details.querySelector("pre").textContent=error.detail || "";
    status.className="error";
   } finally {window.labUI.setBusy(false);}
  }
  function invalid(prefix,error) {
+  document.querySelector(`#${prefix}-error`).hidden=true;
   const node=document.querySelector(`#${prefix}-status`); node.className="error";
   node.textContent=`还没有开始运行：${error.message}。${previous[prefix] ? "下方仍是上次结果。" : ""}`;
  }

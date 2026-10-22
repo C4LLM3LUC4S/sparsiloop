@@ -8,7 +8,7 @@ from threading import BoundedSemaphore
 
 from .engine import Config, compare
 from .study import StudySpec, study
-from .web_recipes import default_specification, run_recipes, test_saved_policy
+from .web_recipes import default_specification, error_message, run_recipes, test_saved_policy
 
 
 WEB = Path(__file__).with_name("web")
@@ -73,6 +73,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = study(StudySpec.from_dict(value)) if self.path == "/api/study" else compare(Config.from_dict(value))
             payload = json.dumps(result, ensure_ascii=False, allow_nan=False).encode()
         except (ValueError, TypeError, UnicodeError, RecursionError) as exc:
+            if self.path in {"/api/controllers", "/api/evaluate-policy"}:
+                return self.respond(400, json.dumps({"error": error_message(str(exc)), "detail": str(exc)}, ensure_ascii=False).encode())
             return self.respond(400, json.dumps({"error": str(exc)}, ensure_ascii=False).encode())
         except OSError:
             return self.respond(500, json.dumps({"error": "这次没能生成下载文件，请检查本机临时目录的可用空间和写入权限。"}, ensure_ascii=False).encode())

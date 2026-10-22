@@ -114,6 +114,7 @@
       <button id="controller-run" type="submit">运行选中的实验</button>
     </form>
     <p id="controller-status" role="status" aria-live="polite">正在准备默认设置…</p>
+    <details id="controller-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
     <div id="controller-output" hidden></div>
   </section>
   <section class="panel recipe-panel" aria-labelledby="saved-policy-title">
@@ -127,6 +128,7 @@
     </form>
     <p id="saved-policy-source" class="hint">还没有载入策略。请选文件，或先运行上面的强化学习实验。</p>
     <p id="saved-policy-status" role="status" aria-live="polite">等待选择策略</p>
+    <details id="saved-policy-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
     <div id="saved-policy-output" hidden></div>
     <p class="hint">每次请另选种子，已有训练和测试种子会随策略保留。编号不同本身不证明统计独立；如果你根据这些结果改了参数，就要把它们记为探索，再另定测试方案。</p>
   </section>

@@ -61,8 +61,11 @@ class WebRecipeTests(unittest.TestCase):
         load_checkpoint(saved)
         self.assertEqual(saved["previous_evaluation_seeds"], [1001,2001])
         self.assertEqual(result["checkpoint"], saved)
-        status, _, _ = self.request("POST", "/api/evaluate-policy", json.dumps({"checkpoint":saved,"seeds":[2001]}))
+        status, _, payload = self.request("POST", "/api/evaluate-policy", json.dumps({"checkpoint":saved,"seeds":[2001]}))
         self.assertEqual(status, 400)
+        error = json.loads(payload)
+        self.assertIn("Use new seeds", error["detail"])
+        self.assertNotEqual(error["error"], error["detail"])
 
     def test_invalid_oversized_unsupported_and_executable_payloads_do_not_run(self):
         requests = [[], {"method":"python"}, {"controller_code":"raise RuntimeError()"},
