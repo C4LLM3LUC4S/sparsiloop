@@ -93,6 +93,11 @@ class PolicyTests(unittest.TestCase):
             self.assertIn("这次没有重新训练", page)
             self.assertNotIn("训练过程</td>", page)
             self.assertNotIn("未训练的策略</td>", page)
+            continued = json.loads((out / "policy-checkpoint.json").read_text(encoding="utf-8"))
+            load_checkpoint(continued)
+            self.assertEqual(continued["previous_evaluation_seeds"], [1001, 2001, 2002])
+            with self.assertRaisesRegex(ValueError, "new seeds"):
+                evaluate_policy(continued, [2001])
             previous = (out / "evaluation.json").read_bytes()
             refused = subprocess.run(command, capture_output=True, timeout=30)
             self.assertEqual(refused.returncode, 2)

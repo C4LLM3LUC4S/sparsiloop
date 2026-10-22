@@ -93,6 +93,8 @@ def evaluate_policy(value, seeds, config=None):
     seeds = seed_list(seeds, "new evaluation seeds")
     if set(seeds) & set(value["training_seeds"] + value["previous_evaluation_seeds"]):
         raise ValueError("Use new seeds, separate from training and previous evaluation")
+    if len(seeds) + len(value["previous_evaluation_seeds"]) > 512:
+        raise ValueError("Recorded test history would exceed 512 seeds; use fewer new seeds")
     base = base if config is None else config
     if not isinstance(base, Config):
         raise ValueError("Evaluation config must be a Config")
@@ -144,5 +146,10 @@ def export_evaluation(result, destination):
             "frozen_after_sha256": result["frozen_after_sha256"]}
     export_controller_lab(view, destination)
     folder = Path(destination)
+    saved = dict(result["checkpoint"])
+    saved["previous_evaluation_seeds"] = saved["previous_evaluation_seeds"] + result["evaluation_seeds"]
+    saved["checkpoint_sha256"] = checkpoint_digest(saved)
+    (folder / "policy-checkpoint.json").write_text(json.dumps(saved, indent=2, allow_nan=False) + "\n",
+                                                 encoding="utf-8")
     (folder / "evaluation.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
                                             encoding="utf-8")
