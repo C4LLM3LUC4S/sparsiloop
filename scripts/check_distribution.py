@@ -106,6 +106,11 @@ def extract_source(archive, destination):
     return roots[0]
 
 
+def within_directory(path, directory):
+    # Windows may report RUNNER~1 for one side and runneradmin for the other.
+    return Path(path).resolve(strict=True).is_relative_to(Path(directory).resolve(strict=True))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wheel", type=Path, required=True)
@@ -126,9 +131,9 @@ def main():
             base, logs, "offline-install")
         installed = json.loads(run([str(python), "-I", "-c", PROBE], base, logs, "installed-probe").stdout)
         source = json.loads(run([sys.executable, "-c", PROBE], project, logs, "source-probe").stdout)
-        if not Path(installed["origin"]).is_relative_to(environment):
+        if not within_directory(installed["origin"], environment):
             raise ValueError("installed import escaped the fresh environment")
-        if not Path(source["origin"]).is_relative_to(project / "event_control_lab"):
+        if not within_directory(source["origin"], project / "event_control_lab"):
             raise ValueError("source comparison imported a different package")
         if installed["runtime_dependencies"]:
             raise ValueError("unexpected runtime dependency")
@@ -154,12 +159,12 @@ def main():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
                                extracted, logs, "extracted-origin").stdout.strip()
-        if not Path(extracted_origin).resolve().is_relative_to(extracted):
+        if not within_directory(extracted_origin, extracted):
             raise ValueError("source-distribution test origin is not the extracted source")
         tests = run([str(python), "-m", "unittest", "discover", "-s", "tests", "-v"],
                     extracted, logs, "fresh-source-tests")
         count = re.search(r"Ran (\d+) tests", tests.stderr)
-        if not count or "\nOK\n" not in tests.stderr.replace("\r\n", "\n"):
+        if not count or not re.search(r"(?m)^OK(?: \(skipped=\d+\))?\s*$", tests.stderr):
             raise ValueError("source-distribution test result was not recognized")
         summary = {
             "status": "passed", "distribution": installed["distribution"], "version": installed["version"],
