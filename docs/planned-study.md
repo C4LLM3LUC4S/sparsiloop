@@ -45,7 +45,7 @@ python -m event_control_lab.planned_study test runs/planned-choice/selection.jso
 
 ## 保存了什么，出错了怎么办？
 
-选择目录包含 `selection.json`、`report.html`、`runs.csv`、`trajectories.csv` 和输入文件摘要。完整 JSON 保留方案、候选、外部随机轨迹、每次运行、失败与选择结果。测试目录的 `test.json` 还带有原选择记录和本次全部测试。
+选择目录包含 `selection.json`、`report.html`、`runs.csv`、`trajectories.csv` 和输入文件摘要。`runs.csv` 直接列出策略、门槛、消息上限、时间步长、时长、种子和结果，不需要根据候选编号另翻 JSON 才知道条件。完整 JSON 保留方案、候选、外部随机轨迹、每次运行、失败与选择结果。测试目录的 `test.json` 还带有原选择记录和本次全部测试。
 
 - 提示种子重叠：在运行前分开填写三组编号。不会自动删去重复项，也不会悄悄运行较少种子。
 - 摘要或计算版本不一致：回到原文件、原版本复核，不要手动改摘要。仅改报告布局不会使记录失效。

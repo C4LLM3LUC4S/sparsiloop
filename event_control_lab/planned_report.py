@@ -47,11 +47,15 @@ def scope(record):
 def records_csv(folder, rows):
     with (folder / "runs.csv").open("x", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["candidate_id", "seed", "roles", "status", "duration_completed", "position_rmse",
+        writer.writerow(["candidate_id", "policy", "threshold", "budget", "dt", "duration", "seed", "roles", "status", "duration_completed", "position_rmse",
                          "attempted", "dropped", "delivered", "in_flight", "error"])
         for row in rows:
             run = row["run"]
-            writer.writerow([row["candidate_id"], row["seed"], ";".join(row.get("roles", ["selection"])), run["status"],
+            config = row["config"]
+            threshold = (config["threshold"] if run["policy"] == "absolute" else
+                         config["relative_threshold"] if run["policy"] == "relative" else "")
+            writer.writerow([row["candidate_id"], run["policy"], threshold, config["budget"], config["dt"],
+                             config["duration"], row["seed"], ";".join(row.get("roles", ["selection"])), run["status"],
                              run["duration_completed"], run["metrics"]["position_rmse"],
                              *[run["packets"][key] for key in ("attempted", "dropped", "delivered", "in_flight")], run["error"]])
     with (folder / "trajectories.csv").open("x", newline="", encoding="utf-8") as handle:

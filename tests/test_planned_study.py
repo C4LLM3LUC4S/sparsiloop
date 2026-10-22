@@ -183,6 +183,12 @@ class PlannedStudyTests(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertEqual(len(rows), 6)
             self.assertTrue(all(row["position_rmse"] == "" for row in rows))
+            self.assertEqual(rows[0]["policy"], "periodic")
+            self.assertEqual(rows[0]["threshold"], "")
+            self.assertEqual(rows[1]["policy"], "absolute")
+            self.assertEqual(float(rows[1]["threshold"]), 2)
+            self.assertTrue(all(int(row["budget"]) == 8 and float(row["dt"]) == 0.1
+                                and float(row["duration"]) == 0.8 for row in rows))
             good = planned.test_schedule(planned.select_schedule(self.spec()))
             export_test(good, folder / "test")
             self.assertIn("所选方案", (folder / "test/report.html").read_text(encoding="utf-8"))
