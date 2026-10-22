@@ -190,7 +190,8 @@ def main():
         extracted = extract_source(archive, base / "fresh source")
         for path in ("README.md", "README.en.md", "BRANDING.md", "START_HERE.md", "quickstart.py", "docs/grid-check.md",
                      "examples/grid-check.json", "scripts/check_distribution.py", "docs/planned-study.md",
-                     "examples/planned-study.json", "event_control_lab/planned_study.py", "event_control_lab/planned_report.py"):
+                     "examples/planned-study.json", "event_control_lab/planned_study.py", "event_control_lab/planned_report.py",
+                     "event_control_lab/planned_cli.py"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],

@@ -1,12 +1,10 @@
 """Choose a communication schedule before running the declared test conditions."""
 
-import argparse
 from dataclasses import asdict, dataclass, field, replace
 import hashlib
 import json
 import math
 from pathlib import Path
-import sys
 
 from . import engine
 from .engine import Config, make_trace, simulate
@@ -221,38 +219,7 @@ def read_json(path):
     return json.loads(data.decode("utf-8-sig")), hashlib.sha256(data).hexdigest()
 
 
-def main(argv=None):
-    from .planned_report import export_selection, export_test
-
-    for stream in (sys.stdout, sys.stderr):
-        if hasattr(stream, "reconfigure"):
-            stream.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description="先选发送方案，再用预留条件复核")
-    commands = parser.add_subparsers(dest="command", required=True)
-    selection = commands.add_parser("select", help="只用选择种子，保存方案和完整记录")
-    selection.add_argument("--spec", required=True)
-    selection.add_argument("--out", required=True)
-    testing = commands.add_parser("test", help="载入既定方案，只运行预先声明的测试种子")
-    testing.add_argument("record", help="选择阶段的 selection.json")
-    testing.add_argument("--out", required=True)
-    args = parser.parse_args(argv)
-    try:
-        output = Path(args.out).resolve()
-        if output.exists():
-            raise ValueError("输出目录已存在，请换一个新目录；旧结果不会覆盖")
-        value, input_hash = read_json(args.spec if args.command == "select" else args.record)
-        if args.command == "select":
-            result = select_schedule(PlannedSpec.from_dict(value))
-            export_selection(result, output, input_hash)
-        else:
-            result = test_schedule(value)
-            export_test(result, output, input_hash)
-        print(f"报告已保存：{output / 'report.html'}")
-        return 0
-    except (ValueError, OSError, UnicodeError) as exc:
-        print(f"没有生成完整的新报告：{exc}", file=sys.stderr)
-        return 2
-
-
 if __name__ == "__main__":
+    from .planned_cli import main
+
     raise SystemExit(main())

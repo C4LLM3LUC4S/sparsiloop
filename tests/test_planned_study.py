@@ -134,6 +134,7 @@ class PlannedStudyTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 planned.load_selection(source)
         self.assertNotIn("planned_report.py", source["source_sha256"])
+        self.assertNotIn("planned_cli.py", source["source_sha256"])
 
     def test_fresh_process_commands_preserve_input_and_existing_outputs(self):
         root = Path(__file__).resolve().parents[1]
@@ -150,9 +151,11 @@ class PlannedStudyTests(unittest.TestCase):
 
             chosen = command("select", "--spec", str(specfile), "--out", str(selection))
             self.assertEqual(chosen.returncode, 0, chosen.stderr)
+            self.assertIn("测试种子还没有运行", chosen.stdout)
             raw = (selection / "selection.json").read_bytes()
             tested = command("test", str(selection / "selection.json"), "--out", str(testing))
             self.assertEqual(tested.returncode, 0, tested.stderr)
+            self.assertIn("这次声明的测试", tested.stdout)
             result = json.loads((testing / "test.json").read_text(encoding="utf-8"))
             self.assertEqual({row["seed"] for row in result["test_runs"]}, {21, 22})
             self.assertEqual(raw, (selection / "selection.json").read_bytes())
