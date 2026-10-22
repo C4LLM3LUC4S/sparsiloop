@@ -66,6 +66,8 @@ Algorithm source: Watkins and Dayan, [Q-learning](https://www.gatsby.ucl.ac.uk/~
 
 重新使用冻结策略：
 
+要保留训练时的时间和来源约定，优先使用[保存策略再测试](saved-policy.md)的 `policy-checkpoint.json` 与 `evaluate-policy` 命令。下面仍是底层 Q 表接口：它只检查表的维度、步数和输入上限，单靠旧表无法核对物理时间或模型来源。
+
 ```python
 import json
 from pathlib import Path

@@ -197,6 +197,8 @@ def records(result):
                 yield method, "training", str(episode["seed"]), episode["config"], episode["run"]
             for evaluation in case["evaluation"]:
                 for label in ("trained", "untrained", "linear_feedback"):
+                    if label not in evaluation:
+                        continue
                     comparison = evaluation[label]
                     for run in comparison["runs"]:
                         yield method, "evaluation_" + label, str(evaluation["seed"]), comparison["config"], run
@@ -210,6 +212,11 @@ def export_controller_lab(result, destination):
     if "rl" in result["cases"]:
         (destination / "policy.json").write_text(
             json.dumps(result["cases"]["rl"]["frozen_table"], indent=2, allow_nan=False) + "\n", encoding="utf-8")
+        if not result.get("evaluation_only") and "plant" not in result:
+            from .policy import checkpoint
+
+            (destination / "policy-checkpoint.json").write_text(
+                json.dumps(checkpoint(result), indent=2, allow_nan=False) + "\n", encoding="utf-8")
     table, training_table = [], []
     with (destination / "summary.csv").open("x", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
@@ -257,7 +264,18 @@ section{background:white;border:1px solid #ccdce4;border-radius:12px;padding:20p
 <li>MFAC、ILC 使用固定间隔的完整测量，强化学习的网络测试还加入了延迟等条件。请在相同条件内比较，不直接给三种方法排总名次。</li></ul>
 <p><a href="controllers.json">下载完整设置、训练记录和策略（JSON）</a> · <a href="summary.csv">下载结果表（CSV）</a> · <a href="trajectories.csv">下载全部轨迹（CSV）</a></p></section>
 <section><h2>各阶段的运行结果</h2><p>表格较宽，可以左右滚动；用键盘时，先选中表格区域，再按方向键。</p><div class="scroll" tabindex="0" role="region" aria-label="控制案例结果表"><table>"""
+    if result.get("evaluation_only"):
+        page = page[:page.index("<h1>")] + '''<h1>SparsiLoop · 重新测试保存的策略</h1>
+<p>这次没有重新训练。先看每次测试是否跑完，再比较相同条件下的位置误差和发送次数。</p>
+<section><h2>这次测试说明什么？</h2><p>程序加载已经固定的策略，用一组新的种子生成初始位置和随机条件，同时运行固定反馈作为对照。时间步长、时域和输入上限保留训练时的设置；测试结果不会用来选择或修改策略。</p>
+<p>结果里的 N/A 表示没有完整时段的分数，不是零误差。相同发送上限也不表示实际发送次数相同。</p>
+<p><a href="evaluation.json">下载训练条件与本次完整结果（JSON）</a> · <a href="summary.csv">下载结果表（CSV）</a> · <a href="trajectories.csv">下载轨迹（CSV）</a></p></section>
+<section><h2>新种子下的测试结果</h2><div class="scroll" tabindex="0" role="region" aria-label="控制案例结果表"><table>'''
     page += header + "".join(table) + "</table></div></section>"
+    if result.get("evaluation_only"):
+        page += '<section><h2>这次只测试保存的策略</h2><p>没有重新训练，也没有用这些结果挑选策略。下面只保留保存的策略和固定反馈对照；训练条件、旧种子和本次全部结果见 <a href="evaluation.json">完整评测记录</a>。</p></section>'
+    elif "rl" in result["cases"] and "plant" not in result:
+        page += '<p><a href="policy-checkpoint.json">保存策略和训练条件，留到下次单独测试（JSON）</a></p>'
     if "plant" in result:
         model = result["plant"]
         page += '<section><h2>这次用了哪个模型？</h2><p>' + html.escape(model["name"]) + '</p>'

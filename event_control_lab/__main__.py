@@ -47,12 +47,30 @@ def main():
     controllers.add_argument("--method", choices=("all", "mfac", "ilc", "rl"), default="all")
     controllers.add_argument("--spec", type=Path)
     controllers.add_argument("--out", type=Path, required=True)
+    policy = sub.add_parser("evaluate-policy", help="test a saved policy on new seeds, without training")
+    policy.add_argument("checkpoint", type=Path)
+    policy.add_argument("--seeds", required=True, help="comma-separated new integer seeds")
+    policy.add_argument("--config", type=Path)
+    policy.add_argument("--out", type=Path, required=True)
     arguments = parser.parse_args()
     try:
         if arguments.command == "serve":
             if not 0 <= arguments.port <= 65535:
                 raise ValueError("port must be between 0 and 65535")
             serve(arguments.port)
+        elif arguments.command == "evaluate-policy":
+            from .policy import evaluate_policy, export_evaluation, read_checkpoint
+
+            if arguments.out.exists():
+                raise ValueError("output directory already exists; choose a new --out path")
+            value, digest = read_checkpoint(arguments.checkpoint)
+            config = Config.from_dict(json.loads(arguments.config.read_text(encoding="utf-8-sig"))) if arguments.config else None
+            seeds = [int(part.strip()) for part in arguments.seeds.split(",")]
+            result = evaluate_policy(value, seeds, config)
+            result["checkpoint_file_sha256"] = digest
+            export_evaluation(result, arguments.out)
+            print("评测已保存；这次没有重新训练。 / Evaluation saved; no training.")
+            print(str((arguments.out / "report.html").resolve()))
         elif arguments.command == "controller-lab":
             if arguments.out.exists():
                 raise ValueError("output directory already exists; choose a new --out path")
