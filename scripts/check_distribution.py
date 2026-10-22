@@ -28,6 +28,7 @@ from event_control_lab import Config, GridSpec, StudySpec, compare, grid_check, 
 from event_control_lab.server import Handler
 from event_control_lab.controller_lab import ControllerLabSpec, controller_lab
 from dataclasses import replace
+from event_control_lab.planned_study import PlannedSpec, select_schedule, test_schedule
 
 config = Config(duration=0.8, budget=4, heartbeat=0.2, measurement_noise=0,
                 process_noise=0, loss_probability=0)
@@ -37,6 +38,12 @@ learning_spec = ControllerLabSpec()
 learning_spec = replace(learning_spec, config=replace(learning_spec.config, duration=0.2, budget=10),
                         ilc_trials=2, training_seeds=(101, 102), evaluation_seeds=(2001,))
 learning = controller_lab(learning_spec)
+planned_spec = PlannedSpec(config=Config(duration=0.8, dt=0.1, budget=8, heartbeat=0.8,
+    delay_steps=0, measurement_noise=0, process_noise=0, loss_probability=0),
+    absolute_thresholds=(2,), relative_thresholds=(2,), selection_seeds=(91, 92),
+    test_seeds=(93, 94), rmse_limit=100)
+planned_selection = select_schedule(planned_spec)
+planned_test = test_schedule(planned_selection)
 
 class QuietHandler(Handler):
     def log_message(self, *args):
@@ -76,6 +83,7 @@ print(json.dumps({
                       for name in ("index.html", "style.css", "app.js", "study.js")},
     "compare": single, "study": scanned, "grid_check": grid_check(GridSpec(config)),
     "controller_lab": learning,
+    "planned_selection": planned_selection, "planned_test": planned_test,
     "installed_http_api_matches_direct_calls": api_checks,
 }))
 '''
@@ -146,7 +154,7 @@ def main():
             raise ValueError("unexpected runtime dependency")
         if installed["distribution"] != "sparsiloop" or installed["runtime_dependencies"] is None:
             raise ValueError("installed distribution metadata is missing or misnamed")
-        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab"):
+        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "planned_selection", "planned_test"):
             if installed[key] != source[key]:
                 raise ValueError(f"installed/source mismatch: {key}")
         for command in ("sparsiloop", "event-control-lab"):
@@ -165,9 +173,24 @@ def main():
         if not all((controller_output / name).is_file() for name in
                    ("controllers.json", "summary.csv", "trajectories.csv", "report.html")):
             raise ValueError("installed controller CLI omitted required outputs")
+        planned_spec = base / "planned spec.json"
+        planned_spec.write_text(json.dumps(installed["planned_selection"]["spec"]), encoding="utf-8")
+        chosen, tested = base / "planned choice", base / "planned test"
+        run([str(python), "-I", "-m", "event_control_lab.planned_study", "select", "--spec",
+             str(planned_spec), "--out", str(chosen)], base, logs, "installed-planned-select")
+        original = (chosen / "selection.json").read_bytes()
+        if json.loads(original) != installed["planned_selection"]:
+            raise ValueError("installed planned selection CLI differs from API")
+        run([str(python), "-I", "-m", "event_control_lab.planned_study", "test",
+             str(chosen / "selection.json"), "--out", str(tested)], base, logs, "installed-planned-test")
+        if json.loads((tested / "test.json").read_bytes()) != installed["planned_test"]:
+            raise ValueError("installed planned test CLI differs from API")
+        if (chosen / "selection.json").read_bytes() != original:
+            raise ValueError("planned test changed its input record")
         extracted = extract_source(archive, base / "fresh source")
         for path in ("README.md", "README.en.md", "BRANDING.md", "START_HERE.md", "quickstart.py", "docs/grid-check.md",
-                     "examples/grid-check.json", "scripts/check_distribution.py"):
+                     "examples/grid-check.json", "scripts/check_distribution.py", "docs/planned-study.md",
+                     "examples/planned-study.json", "event_control_lab/planned_study.py", "event_control_lab/planned_report.py"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -192,6 +215,7 @@ def main():
             "static_resources_match_source": True,
             "both_command_entry_points": True, "installed_grid_cli": True,
             "installed_controller_cli_and_result_parity": True,
+            "installed_planned_selection_and_test_match_source": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),
             "publicly_released": False,

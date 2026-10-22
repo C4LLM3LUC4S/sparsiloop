@@ -1,0 +1,25 @@
+{
+  "config": {
+    "plant": "scalar",
+    "duration": 4.0,
+    "dt": 0.02,
+    "budget": 40,
+    "delay_steps": 2,
+    "loss_probability": 0.05,
+    "measurement_noise": 0.005,
+    "process_noise": 0.01,
+    "heartbeat": 0.5,
+    "kp": 2.0,
+    "kd": 2.0,
+    "input_limit": 4.0,
+    "state_limit": 20.0,
+    "initial_position": 1.0,
+    "initial_velocity": 0.0
+  },
+  "absolute_thresholds": [0.02, 0.06, 0.12, 0.24],
+  "relative_thresholds": [0.05, 0.15, 0.3],
+  "selection_seeds": [3001, 3002, 3003],
+  "test_seeds": [4001, 4002, 4003],
+  "previously_used_seeds": [],
+  "rmse_limit": 0.4
+}

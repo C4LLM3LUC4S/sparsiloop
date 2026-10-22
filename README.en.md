@@ -1,5 +1,7 @@
 # SparsiLoop · Event-triggered control lab
 
+Need to choose a communication threshold before inspecting test outcomes? The [planned selection workflow](docs/planned-study.md) saves a fixed rule and every candidate result, then evaluates the chosen schedule on declared test seeds in a separate command. It uses built-in plants and fixed feedback; failures remain visible and test outcomes never trigger reselection.
+
 **Compare control error with the messages it actually costs.**
 
 SparsiLoop is a local lab for students and control researchers to compare event-triggered and periodic feedback under packet budgets, delay and loss. Inspect every message, keep failed cases visible and export reproducible trajectories and metrics.
