@@ -97,7 +97,7 @@ class PolicyTests(unittest.TestCase):
             environment = dict(os.environ, PYTHONIOENCODING="ascii")
             process = subprocess.run(command, capture_output=True, timeout=30, env=environment)
             self.assertEqual(process.returncode, 0, process.stderr)
-            self.assertIn(str(out), process.stdout.decode("utf-8"))
+            self.assertIn(str((out / "report.html").resolve()), process.stdout.decode("utf-8"))
             result = json.loads((out / "evaluation.json").read_text(encoding="utf-8"))
             self.assertEqual(result["checkpoint_file_sha256"], hashlib.sha256(original).hexdigest())
             self.assertEqual(source.read_bytes(), original)
