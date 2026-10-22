@@ -8,6 +8,7 @@ from .engine import Config, compare
 from .grid import GridSpec, export_grid_check, grid_check
 from .server import serve
 from .study import StudySpec, export_study, study
+from .controller_lab import ControllerLabSpec, controller_lab, export_controller_lab
 
 
 def export(result, destination):
@@ -42,12 +43,24 @@ def main():
     grid = sub.add_parser("grid-check", help="check deterministic nested grids at fixed physical schedules")
     grid.add_argument("--spec", type=Path, required=True)
     grid.add_argument("--out", type=Path, required=True)
+    controllers = sub.add_parser("controller-lab", help="MFAC, repeated-trial ILC and train/freeze/evaluate RL")
+    controllers.add_argument("--method", choices=("all", "mfac", "ilc", "rl"), default="all")
+    controllers.add_argument("--spec", type=Path)
+    controllers.add_argument("--out", type=Path, required=True)
     arguments = parser.parse_args()
     try:
         if arguments.command == "serve":
             if not 0 <= arguments.port <= 65535:
                 raise ValueError("port must be between 0 and 65535")
             serve(arguments.port)
+        elif arguments.command == "controller-lab":
+            if arguments.out.exists():
+                raise ValueError("output directory already exists; choose a new --out path")
+            spec = ControllerLabSpec.from_dict(json.loads(arguments.spec.read_text(encoding="utf-8-sig"))) if arguments.spec else ControllerLabSpec()
+            result = controller_lab(spec, arguments.method)
+            export_controller_lab(result, arguments.out)
+            print(json.dumps({"output": str(arguments.out.resolve()), "methods": list(result["cases"]),
+                              "report": str((arguments.out / "report.html").resolve())}, indent=2))
         elif arguments.command == "grid-check":
             spec = GridSpec.from_dict(json.loads(arguments.spec.read_text(encoding="utf-8-sig")))
             result = grid_check(spec)
