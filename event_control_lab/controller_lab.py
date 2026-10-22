@@ -82,31 +82,31 @@ class ControllerLabSpec:
             raise ValueError("unknown controller-lab fields") from exc
 
 
-def single(config, controller):
+def single(config, controller, plant=None):
     trace, digest = make_trace(config)
     return {"config": asdict(config), "exogenous_trace": trace,
-            "exogenous_trace_sha256": digest, "run": simulate(config, "periodic", controller, trace)}
+            "exogenous_trace_sha256": digest, "run": simulate(config, "periodic", controller, trace, plant=plant)}
 
 
 def initial_position(seed):
     return random.Random(seed ^ 0x494E4954).uniform(-1.5, 1.5)
 
 
-def run_mfac(spec):
+def run_mfac(spec, plant=None):
     controller = CFDLMFAC(spec.config, spec.mfac)
-    record = single(spec.config, controller)
+    record = single(spec.config, controller, plant)
     record.update({"parameters": asdict(spec.mfac), "updates": controller.updates,
                    "initial_input_history": [0, 0],
                    "scope": "SISO CFDL teaching baseline; sign/gain prior is declared, not identified from plant truth"})
     return record
 
 
-def run_ilc(spec):
+def run_ilc(spec, plant=None):
     signal = (0.0,) * spec.config.steps
     trials = []
     for index in range(spec.ilc_trials):
         controller = TrialILC(spec.config, signal)
-        record = single(spec.config, controller)
+        record = single(spec.config, controller, plant)
         complete = record["run"]["status"] == "complete" and len(controller.observations) == spec.config.steps
         learned = index + 1 < spec.ilc_trials and complete
         after = ilc_next(signal, controller.observations, spec.ilc_gain, spec.config.input_limit) if learned else signal
@@ -126,14 +126,14 @@ def run_ilc(spec):
             "scope": "Repeated-task shifted P-type ILC; not an event-triggered ILC implementation or a convergence certificate"}
 
 
-def run_q_learning(spec):
+def run_q_learning(spec, plant=None):
     table = QTable(spec.config.steps, spec.config.input_limit, spec.q)
     initial = table.snapshot()
     training = []
     for seed in spec.training_seeds:
         config = replace(spec.config, seed=seed, initial_position=initial_position(seed))
         learner = QController(config, table, rng=random.Random(seed ^ 0x4143544E))
-        record = single(config, learner)
+        record = single(config, learner, plant)
         record.update({"seed": seed, "q_updates": learner.updates,
                        "completed_updates": len(learner.updates),
                        "unobserved_final_transition": "No y(T) reward/update; learning terminates at last received grid sample"})
@@ -147,9 +147,9 @@ def run_q_learning(spec):
                                             measurement_noise=0.005, process_noise=0.01)
     for seed in spec.evaluation_seeds:
         config = replace(base, seed=seed, initial_position=initial_position(seed))
-        evaluation.append({"seed": seed, "trained": compare(config, lambda c: QController(c, table)),
-                           "untrained": compare(config, lambda c: QController(c, empty)),
-                           "linear_feedback": compare(config)})
+        evaluation.append({"seed": seed, "trained": compare(config, lambda c: QController(c, table), plant=plant),
+                           "untrained": compare(config, lambda c: QController(c, empty), plant=plant),
+                           "linear_feedback": compare(config, plant=plant)})
     if table.fingerprint() != frozen_hash:
         raise ValueError("evaluation changed the supposedly frozen Q policy")
     return {"algorithm": "tabular Q-learning on (arrival tick, clipped position bin)",
@@ -166,11 +166,11 @@ def run_q_learning(spec):
             "selection": "Final declared training episode; no best-seed or evaluation-based selection"}
 
 
-def controller_lab(spec=None, method="all"):
+def controller_lab(spec=None, method="all", *, plant=None):
     spec = spec or ControllerLabSpec()
     if method not in {"all", "mfac", "ilc", "rl"}:
         raise ValueError("method must be all, mfac, ilc or rl")
-    paths = {"engine": Path(engine.__file__), "controllers": Path(controllers.__file__),
+    paths = {"engine": Path(engine.__file__), "models": Path(engine.__file__).with_name("models.py"), "controllers": Path(controllers.__file__),
              "controller_lab": Path(__file__)}
     result = {"analysis": "classic-controller-recipes-v1", "python_version": platform.python_version(),
               "specification": asdict(spec), "method": method,
@@ -179,7 +179,9 @@ def controller_lab(spec=None, method="all"):
               "cases": {}}
     for name, function in (("mfac", run_mfac), ("ilc", run_ilc), ("rl", run_q_learning)):
         if method in {"all", name}:
-            result["cases"][name] = function(spec)
+            result["cases"][name] = function(spec, plant)
+    if plant is not None:
+        result["plant"] = plant.metadata()
     return result
 
 
@@ -222,7 +224,7 @@ def export_controller_lab(result, destination):
                            "evaluation_trained": "冻结评测：已训练", "evaluation_untrained": "评测：未训练参考",
                            "evaluation_linear_feedback": "评测：固定反馈参考"}[stage]
             status_label = {"complete": "完整结束", "state_limit": "提前停止：状态超限",
-                            "controller_error": "控制器错误"}.get(run["status"], run["status"])
+                            "controller_error": "控制器错误", "plant_error": "模型错误"}.get(run["status"], run["status"])
             policy_label = {"periodic": "周期", "absolute": "绝对变化", "relative": "相对变化"}[run["policy"]]
             shown = [method.upper(), stage_label, label, policy_label, status_label,
                      "不可用 / N/A" if value is None else f"{value:.6g}"] + values[6:]
@@ -243,7 +245,7 @@ def export_controller_lab(result, destination):
     page = """<!doctype html><html lang="zh-CN"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>SparsiLoop · 经典控制案例</title>
 <style>body{font:17px/1.6 system-ui,sans-serif;max-width:1120px;margin:auto;padding:24px;color:#183546;background:#f5f8fa}
-section{background:white;border:1px solid #ccdce4;border-radius:12px;padding:20px;margin:18px 0}a{color:#006c77}
+section{background:white;border:1px solid #ccdce4;border-radius:12px;padding:20px;margin:18px 0}a{color:#006c77}pre{white-space:pre-wrap;overflow-wrap:anywhere}
 .scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:9px;border-bottom:1px solid #dbe5ea;text-align:left;white-space:nowrap}h1{font-size:28px}code{word-break:break-all}</style>
 <h1>SparsiLoop · 经典控制案例 / Controller recipes</h1>
 <p>先确认阶段和发送条件，再比较同一指标。此页是教学案例，没有选出通用“最佳控制器”。</p>
@@ -256,6 +258,11 @@ section{background:white;border:1px solid #ccdce4;border-radius:12px;padding:20p
 <p><a href="controllers.json">完整参数、学习/训练记录与策略</a> · <a href="summary.csv">汇总 CSV</a> · <a href="trajectories.csv">全部轨迹 CSV</a></p></section>
 <section><h2>在线、重复试次与独立种子评测</h2><p>窄屏可横向滚动表格；键盘可聚焦表格区域后使用方向键。</p><div class="scroll" tabindex="0" role="region" aria-label="控制案例结果表"><table>"""
     page += header + "".join(table) + "</table></div></section>"
+    if "plant" in result:
+        model = result["plant"]
+        page += '<section><h2>接入的本地模型 / Local model</h2><p>' + html.escape(model["name"]) + '</p>'
+        page += '<p>来源和参数是使用者声明，尚不代表实物校准或独立认证。模型错误会保留已完成部分，完整时域分数不可用。RMSE 仍按第一状态相对零目标计算；固定加权代价不是物理能耗。</p><pre>'
+        page += html.escape(json.dumps(model, ensure_ascii=False, indent=2)) + '</pre></section>'
     if training_table:
         page += '<section><details><summary>展开全部训练轮次 / All training episodes</summary><div class="scroll" tabindex="0" role="region" aria-label="全部训练记录表"><table>'
         page += header + "".join(training_table) + "</table></div></details></section>"

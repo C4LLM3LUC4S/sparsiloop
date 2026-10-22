@@ -50,6 +50,8 @@ Output folders must be new. Full JSON includes configurations, source fingerprin
 
 ## Use your own controller
 
+Have your own dynamics? The [local plant adapter](docs/own-model.md) connects a declared single-input scalar or position–velocity model to network comparisons, post-hoc references and MFAC/ILC/RL recipes. Run `python -m examples.own_model_case --out runs/own-model` for a complete report. Retain model source, parameters, units and an independent known-input check. See [product tasks and acceptance](docs/product-scope.md).
+
 ```python
 from event_control_lab import Config, compare
 

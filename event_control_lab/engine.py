@@ -8,6 +8,8 @@ from pathlib import Path
 import platform
 import random
 
+from .models import PlantAdapter, checked_state
+
 
 POLICIES = ("periodic", "absolute", "relative")
 PROTOCOL = "sampled-uplink-v1"
@@ -137,10 +139,19 @@ def make_trace(config):
     return trace, hashlib.sha256(payload).hexdigest()
 
 
-def simulate(config, policy="absolute", controller=None, trace=None):
+def simulate(config, policy="absolute", controller=None, trace=None, *, plant=None, plant_config=None):
     if policy not in POLICIES:
         raise ValueError("unknown communication policy")
     controller = LinearFeedback(config) if controller is None else controller
+    if plant is not None:
+        if not isinstance(plant, PlantAdapter):
+            raise ValueError("plant must be a PlantAdapter")
+        plant.validate(config)
+    initialization = config if plant_config is None else plant_config
+    if (not isinstance(initialization, Config) or any(
+            getattr(initialization, item.name) != getattr(config, item.name)
+            for item in fields(Config) if item.name != "budget")):
+        raise ValueError("plant_config may differ only in the transport budget")
     generated, trace_hash = make_trace(config)
     if trace is not None and trace != generated:
         raise ValueError("trace differs from the configured exogenous realization")
@@ -155,7 +166,15 @@ def simulate(config, policy="absolute", controller=None, trace=None):
     status, error = "complete", None
     completed = 0
     heartbeat = config.heartbeat_steps
+    transition = None
+    if plant is not None:
+        try:
+            transition = plant.initialize(initialization)
+        except Exception as exc:
+            status, error = "plant_error", "plant initialization: " + str(exc)
     for tick in range(config.steps):
+        if status != "complete":
+            break
         sensor_samples += 1
         measured = tuple(x + config.measurement_noise * z for x, z in
                          zip(state, trace["measurement_standard_normal"][tick]))
@@ -207,8 +226,15 @@ def simulate(config, policy="absolute", controller=None, trace=None):
             unobserved += 1
         else:
             ages.append(age)
-        next_state = advance(config.plant, state, command + config.process_noise *
-                             trace["input_disturbance_standard_normal"][tick], config.dt)
+        effective_input = command + config.process_noise * trace["input_disturbance_standard_normal"][tick]
+        if transition is None:
+            next_state = advance(config.plant, state, effective_input, config.dt)
+        else:
+            try:
+                next_state = checked_state(transition(state, effective_input, config.dt), len(state))
+            except Exception as exc:
+                status, error = "plant_error", "plant step: " + str(exc)
+                break
         position_cost = 0.5 * config.dt * (state[0] ** 2 + next_state[0] ** 2)
         position_integral += position_cost
         velocity_cost = (0.05 * config.dt * (state[1] ** 2 + next_state[1] ** 2)
@@ -227,7 +253,7 @@ def simulate(config, policy="absolute", controller=None, trace=None):
                      "sent": False, "dropped": False, "delivered": 0})
     ledger["in_flight"] = sum(map(len, queue.values()))
     assert ledger["attempted"] == ledger["dropped"] + ledger["delivered"] + ledger["in_flight"]
-    return {
+    result = {
         "policy": policy, "status": status, "error": error, "duration_completed": end_time,
         "trace_sha256": trace_hash, "packets": ledger,
         "timing": {
@@ -248,18 +274,26 @@ def simulate(config, policy="absolute", controller=None, trace=None):
             "saturated_updates": saturations, "requests_blocked_by_budget": blocked,
         }, "trajectory": rows,
     }
+    if plant is not None:
+        result["plant"] = plant.metadata()
+        result["plant_initialization_config"] = asdict(initialization)
+        result["plant_adapter_source_sha256"] = hashlib.sha256(Path(__file__).with_name("models.py").read_bytes()).hexdigest()
+    return result
 
 
-def compare(config=None, controller_factory=None):
+def compare(config=None, controller_factory=None, *, plant=None):
     config = Config() if config is None else config
     trace, trace_hash = make_trace(config)
     factory = LinearFeedback if controller_factory is None else controller_factory
-    return {
+    result = {
         "schema_version": 1, "engine_version": "0.0.1", "protocol": PROTOCOL,
         "engine_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "python_version": platform.python_version(), "config": asdict(config),
         "controller": "LinearFeedback" if controller_factory is None else "custom_local_factory",
         "scope": "Shared maximum attempted uplink packets, not equal actual traffic or a stability certificate",
         "exogenous_trace_sha256": trace_hash, "exogenous_trace": trace,
-        "runs": [simulate(config, policy, factory(config), trace) for policy in POLICIES],
+        "runs": [simulate(config, policy, factory(config), trace, plant=plant) for policy in POLICIES],
     }
+    if plant is not None:
+        result["plant"] = plant.metadata()
+    return result

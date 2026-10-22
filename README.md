@@ -47,6 +47,8 @@ python -m unittest discover -s tests -v
 
 ## 接自己的控制器
 
+已有自己的对象方程？先看[接入自己的模型](docs/own-model.md)。`python -m examples.own_model_case --out runs/own-model` 生成完整导读报告；同一个本地模型接入三种发送策略、事后实际发送量参考及 MFAC/ILC/RL，无需修改核心。当前支持单输入、一维输出或位置—速度布局，参数来源为使用者声明。
+
 ```python
 from event_control_lab import Config, compare
 
@@ -82,6 +84,7 @@ python -m event_control_lab grid-check --spec examples/grid-check.json --out run
 ## 解释与范围
 
 - [实验约定](docs/protocol.md)：对象方程、触发规则、时序、预算和指标。
+- [产品任务与验收](docs/product-scope.md)：适用用户、实际任务及仍需的收益证据。
 - [实际通信量对照](docs/traffic-study.md)：多门槛、多种子、事后周期参考和失败覆盖。
 - [步长核查](docs/grid-check.md)：固定物理时间条件，区分触发变化与位置积分偏差。
 - [首阶段设计与验收](docs/experiment-plan.md)：本轮问题、固定变量和验证条件。

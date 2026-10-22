@@ -18,4 +18,6 @@ python quickstart.py --mode controllers
 
 先读报告里的“如何读这份结果”。MFAC 是在线估计，ILC 跨轮次学习，RL 要看冻结后的未训练种子评测；三个案例的条件不同，不能直接排榜。完整公式、导出和限制见 [经典控制案例](docs/classic-controllers.md)。
 
+想替换为自己的对象：运行 `python -m examples.own_model_case --out runs/own-model`，打开新目录中的 `report.html`。它把一个已声明参数的本地模型接入网络比较与三类控制案例，保留来源及全部结果。照着[模型接入说明](docs/own-model.md)替换工厂函数，先核已知输入轨迹。
+
 With Python 3.10+, extract the full repository and run `python quickstart.py`. It binds an available loopback port before opening your browser. No installation, account or additional dependency is required. Keep the terminal open; Ctrl+C stops the server. For static learning reports, run `python quickstart.py --mode controllers`; `--no-open` disables browser opening. Each report uses a fresh directory. These are explicit source-preview paths, not an installed-wheel claim; regular installation is `python -m pip install .`.
