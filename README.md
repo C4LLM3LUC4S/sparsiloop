@@ -14,6 +14,8 @@ A local lab to compare event-triggered and periodic control under communication 
 
 ## 本地打开
 
+最短入口：完整解压后运行 `python quickstart.py`，自动选择空闲本地端口并打开网页。看三种学习控制案例用 `python quickstart.py --mode controllers`。无需安装或激活环境；详见 [第一次使用](START_HERE.md)。下文保留原有模块命令。
+
 首次使用：下载本仓库的 Code → Download ZIP 并解压，或克隆 `https://github.com/C4LLM3LUC4S/sparsiloop.git`。进入解压后的项目文件夹。无需购买服务或配置密钥。
 
 在本项目文件夹中运行：
