@@ -3,9 +3,9 @@
   "module": "event_control_lab",
   "date": "2026-10-22",
   "version": "0.0.1",
-  "stage": "local_prototype_with_pinned_public_pid_recipe",
-  "branch": "work/simple-pid-integration",
-  "remote_repository_created": false,
+  "stage": "public_source_with_classic_controller_delivery_branch",
+  "branch": "work/classic-learning-controllers",
+  "remote_repository_created": true,
   "publicly_released": false,
   "scientific_claims_verified": false,
   "human_adoption_verified": false,
@@ -14,7 +14,11 @@
     "backend_test_execution": "44 tests passed from the grid-check sdist at 4b8709f; current core and base test bytes verified identical, not rerun",
     "historical_browser_checks_passed": 11,
     "historical_browser_check_execution": "10 end-to-end checks plus one axis check on b9021669; not counted as new tests",
-    "branding_layout_viewports_passed": [928, 390, 320],
+    "branding_layout_viewports_passed": [
+      928,
+      390,
+      320
+    ],
     "branding_browser_evidence": "artifacts/grid-check-20261022/branding-layout.json",
     "lint": "Ruff passed; JavaScript unchanged since prior syntax checks",
     "fresh_offline_package_install": "passed at the unchanged-core baseline",
@@ -28,14 +32,27 @@
     "core_baseline_sdist_sha256": "62a8fc1cfffe7c0a78c1f35889d9784c995fc1360b6ca37ae1316a3818c10d31"
   },
   "ci": {
-    "configured_os": ["ubuntu-latest", "windows-latest"],
-    "configured_python": ["3.10", "3.12", "3.14"],
+    "configured_os": [
+      "ubuntu-latest",
+      "windows-latest"
+    ],
+    "configured_python": [
+      "3.10",
+      "3.12",
+      "3.14"
+    ],
     "matrix_jobs": 6,
     "optional_controller_jobs": 1,
     "total_jobs": 7,
     "yaml_and_matrix_validated": true,
-    "executed": false,
-    "dependency": "Create and populate the independent repository"
+    "executed": true,
+    "dependency": null,
+    "initial_main_result": "Windows path-alias false positive; Linux and optional PID passed",
+    "recovery_pr": "https://github.com/C4LLM3LUC4S/sparsiloop/pull/1",
+    "recovery_head": "7449cb9101d784f637e848a58beae509088a6c30",
+    "recovery_run": 39778232149,
+    "recovery_result": "success",
+    "classic_controller_current_head_result": "pending publication and hosted checks"
   },
   "grid_check": {
     "analysis": "deterministic-nested-grid-check-v1",
@@ -68,6 +85,23 @@
     "sdist_sha256": "654ea6ad113ec0afcef21a2b8320cc50731d472bc2638c252fb86cfdd67c0047",
     "human_adoption_evidence": false
   },
-  "next_delivery": "Independent-repository installation and hosted CI; prospective comparison remains unverified",
-  "prior_project": "RankProbe v0.1.0a4 exists in coursework repository; independent migration still pending"
+  "next_delivery": "Classic-controller current-head CI, report QA, then simpler public onboarding",
+  "prior_project": "RankProbe has independent public source; original alpha-4 assets preserved at original repository",
+  "repository": "https://github.com/C4LLM3LUC4S/sparsiloop",
+  "classic_controller_recipes": {
+    "methods": [
+      "SISO CFDL-MFAC",
+      "shifted P-type ILC",
+      "tabular Q-learning RLC"
+    ],
+    "plant": "scalar",
+    "baseline_protocol": "regular full-rate zero-delay/loss/noise",
+    "rl_frozen_evaluation_networks": true,
+    "held_out_seed_selection": "predeclared, disjoint, no evaluation tuning",
+    "unit_tests_passed": 15,
+    "earlier_candidate_extracted_source_tests_passed": 60,
+    "current_candidate_checks": "resource-budget check added after earlier package QA; current CI still required",
+    "scientific_claims_verified": false,
+    "human_adoption_verified": false
+  }
 }

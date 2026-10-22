@@ -8,11 +8,13 @@ A local lab to compare event-triggered and periodic control under communication 
 
 [English guide](README.en.md) · [名称与简介](BRANDING.md)
 
-**0.0.1，本地开发原型，尚未公开发行。** 目标是让学生、教师和控制研究者直观看见通信次数、信息年龄与控制误差的关系，并能带走完整实验数据。SparsiLoop 是公开项目名称，Python 模块仍为 `event_control_lab`。
+**0.0.1，公开开发原型，尚未发布版本资产。** 目标是让学生、教师和控制研究者直观看见通信次数、信息年龄与控制误差的关系，并能带走完整实验数据。SparsiLoop 是公开项目名称，Python 模块仍为 `event_control_lab`。
 
 目前包括两个归一化教学对象、一条传感器上行链路和三种发送策略。固定反馈控制器只读取已到达的测量；网页与命令行使用同一个 Python 仿真核心。Python 3.10+，核心和网页服务均无需第三方依赖、API 密钥、账户或 GPU。
 
 ## 本地打开
+
+首次使用：下载本仓库的 Code → Download ZIP 并解压，或克隆 `https://github.com/C4LLM3LUC4S/sparsiloop.git`。进入解压后的项目文件夹。无需购买服务或配置密钥。
 
 在本项目文件夹中运行：
 
@@ -23,6 +25,14 @@ python -m event_control_lab serve --port 8788
 浏览器打开终端显示的 `http://127.0.0.1:8788`。调整发送上限、延迟或丢包概率后点击“运行比较”。先比较同一位置偏差指标，再核对实际发送量；相同上限不代表相同实际通信量。预算为零或延迟很长时也可以运行，用于观察失去反馈后的情况。
 
 服务仅绑定本机回环地址。关闭运行它的终端或按 Ctrl+C 停止；没有云部署。
+
+## 经典控制与学习案例
+
+```powershell
+python -m event_control_lab controller-lab --out runs/controllers
+```
+
+打开新目录中的 `report.html`：一次运行得到 MFAC 在线估计、ILC 重复试次、强化学习训练后冻结评测。每轮数据和失败均保留；RL 同时给出未训练和固定反馈参考，不保证优于它们。三者首版均使用一阶教学对象，MFAC/ILC 要求完整规则采样；它们还不是通用的事件触发版本。可用 `--method mfac`、`ilc`、`rl` 单独运行，完整参数、公式与限制见 [经典控制案例](docs/classic-controllers.md)。
 
 ## 保存可重复结果
 

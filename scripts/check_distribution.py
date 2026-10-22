@@ -26,11 +26,17 @@ import hashlib
 import event_control_lab
 from event_control_lab import Config, GridSpec, StudySpec, compare, grid_check, study
 from event_control_lab.server import Handler
+from event_control_lab.controller_lab import ControllerLabSpec, controller_lab
+from dataclasses import replace
 
 config = Config(duration=0.8, budget=4, heartbeat=0.2, measurement_noise=0,
                 process_noise=0, loss_probability=0)
 spec = StudySpec(config=config, thresholds=(0.06, 0.12), seeds=(20261022,))
 single, scanned = compare(config), study(spec)
+learning_spec = ControllerLabSpec()
+learning_spec = replace(learning_spec, config=replace(learning_spec.config, duration=0.2, budget=10),
+                        ilc_trials=2, training_seeds=(101, 102), evaluation_seeds=(2001,))
+learning = controller_lab(learning_spec)
 
 class QuietHandler(Handler):
     def log_message(self, *args):
@@ -69,6 +75,7 @@ print(json.dumps({
     "static_sha256": {name: hashlib.sha256(resources.files("event_control_lab.web").joinpath(name).read_bytes()).hexdigest()
                       for name in ("index.html", "style.css", "app.js", "study.js")},
     "compare": single, "study": scanned, "grid_check": grid_check(GridSpec(config)),
+    "controller_lab": learning,
     "installed_http_api_matches_direct_calls": api_checks,
 }))
 '''
@@ -139,7 +146,7 @@ def main():
             raise ValueError("unexpected runtime dependency")
         if installed["distribution"] != "sparsiloop" or installed["runtime_dependencies"] is None:
             raise ValueError("installed distribution metadata is missing or misnamed")
-        for key in ("version", "static_sha256", "compare", "study", "grid_check"):
+        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab"):
             if installed[key] != source[key]:
                 raise ValueError(f"installed/source mismatch: {key}")
         for command in ("sparsiloop", "event-control-lab"):
@@ -152,6 +159,12 @@ def main():
              str(project / "examples/grid-check.json"), "--out", str(cli_output)], base, logs, "installed-grid-cli")
         if len(json.loads((cli_output / "grid.json").read_text(encoding="utf-8"))["summaries"]) != 9:
             raise ValueError("installed grid CLI did not export all requested runs")
+        controller_output = base / "installed controller output"
+        run([str(python), "-I", "-m", "event_control_lab", "controller-lab", "--method", "ilc",
+             "--out", str(controller_output)], base, logs, "installed-controller-cli")
+        if not all((controller_output / name).is_file() for name in
+                   ("controllers.json", "summary.csv", "trajectories.csv", "report.html")):
+            raise ValueError("installed controller CLI omitted required outputs")
         extracted = extract_source(archive, base / "fresh source")
         for path in ("README.md", "README.en.md", "BRANDING.md", "docs/grid-check.md",
                      "examples/grid-check.json", "scripts/check_distribution.py"):
@@ -175,6 +188,7 @@ def main():
             "isolated_import_verified": True, "compare_study_grid_match_source": True,
             "static_resources_match_source": True,
             "both_command_entry_points": True, "installed_grid_cli": True,
+            "installed_controller_cli_and_result_parity": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),
             "publicly_released": False,

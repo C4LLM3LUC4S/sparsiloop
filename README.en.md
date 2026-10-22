@@ -8,9 +8,11 @@ SparsiLoop is a local lab for students and control researchers to compare event-
 
 Integrating an existing controller? The [pinned simple-pid recipe](docs/simple-pid.md) uses a simulation clock, received-observation gaps and fresh PID state, then exports provenance and every P/I/D update. Its optional dependency is separate from the standard-library core.
 
-**Version 0.0.1: development prototype, not a public release.** It currently has two normalized teaching plants, three sensor-to-controller schedules and a fixed linear controller. It does not establish stability, hardware safety, paper reproduction or independent adoption.
+**Version 0.0.1: public development prototype, no versioned release assets yet.** It currently has two normalized teaching plants, three sensor-to-controller schedules and a fixed linear controller, plus separate learning recipes. It does not establish stability, hardware safety, paper reproduction or independent adoption.
 
 ## Run locally
+
+Download and extract this repository's source ZIP, or clone `https://github.com/C4LLM3LUC4S/sparsiloop.git`, then enter the project folder.
 
 Python 3.10 or later. The simulator and local web server use only the Python standard library; no account, model, API key or GPU is required. From this source folder:
 
@@ -19,6 +21,14 @@ python -m event_control_lab serve --port 8788
 ```
 
 Open the displayed loopback URL. Set a maximum packet budget, delay and loss probability, then run the comparison. A common maximum budget is not equal actual traffic. The lower section scans all declared thresholds and seeds and builds a separate periodic reference at the event run's actual attempted packet count.
+
+Run the [MFAC, ILC and reinforcement-learning recipes](docs/classic-controllers.md):
+
+```sh
+python -m event_control_lab controller-lab --out runs/controllers
+```
+
+Open `report.html` in the new output folder. The scalar teaching recipes retain online estimates, all repeated trials, training/evaluation seed separation, frozen policy checkpoints, failed cases and untrained/fixed-feedback references. MFAC and ILC currently require full-rate regular observations; they are not advertised as general event-triggered variants. Use `--method mfac`, `ilc` or `rl` for one recipe. The installed wheel supports the same command without example files or extra dependencies.
 
 Check sensitivity to sampling at fixed physical schedules:
 
