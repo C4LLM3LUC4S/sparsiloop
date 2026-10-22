@@ -35,6 +35,20 @@
    status.className = "";
   }
  }
+ function describeLoadedPolicy(value, message) {
+  loaded=value;
+  document.querySelector("#saved-policy-source").textContent=message;
+  document.querySelector("#saved-policy-history").hidden=!value;
+  if(!value)return;
+  for(const [field, target, label] of [["training_seeds","#saved-training-seeds","训练用过"],
+   ["previous_evaluation_seeds","#saved-test-seeds","测试用过"]]) {
+   const items=value[field];
+   const valid=Array.isArray(items) && items.length>=1 && items.length<=512 &&
+    items.every(x=>Number.isSafeInteger(x) && x>=0 && x<2**32);
+   document.querySelector(target).textContent=valid ? `${label}（${items.length} 个）：${items.join(", ")}` :
+    `${label}：记录格式不正确，请核对策略文件。`;
+  }
+ }
  form.addEventListener("input",()=>{showMethod();stale("controller");});
  savedForm.addEventListener("input",()=>stale("saved-policy"));
  showMethod();
@@ -108,8 +122,7 @@
    "先在同一种方法、同一组条件下比较误差和实际消息数。ILC 可以看前后轮次；强化学习要看测试阶段，训练成绩不能代替测试，也不要把不同方法直接排成总榜。","scope"));
   latest = result.checkpoint || null;
   if(prefix === "saved-policy" && result.checkpoint) {
-   loaded=result.checkpoint;
-   document.querySelector("#saved-policy-source").textContent="当前页面已记住这次用过的测试种子。下次打开网页时要接着用，请另存新版策略。";
+   describeLoadedPolicy(result.checkpoint,"当前页面已记住这次用过的测试种子。下次打开网页时要接着用，请另存新版策略。");
   }
   previous[prefix] = true;
  }
@@ -143,20 +156,21 @@
  });
  savedForm.elements.checkpoint.addEventListener("change",async()=>{
   const version=++fileVersion;
-  loaded=null; const node=document.querySelector("#saved-policy-source"), file=savedForm.elements.checkpoint.files[0];
-  if(!file){node.textContent="还没有选择策略文件。";return;}
+  const file=savedForm.elements.checkpoint.files[0];
+  describeLoadedPolicy(null,file ? "正在读取策略文件…" : "还没有选择策略文件。");
+  if(!file)return;
   try {
    if(file.size > 2*1024*1024)throw Error("文件超过网页的 2 MiB 限制，请用命令行加载");
    const value=JSON.parse(await file.text());
    if(version!==fileVersion)return;
    if(value?.format!=="sparsiloop-frozen-policy-v1")throw Error("请选择完整的 policy-checkpoint.json，旧的原始 Q 表不够");
-   loaded=value; node.textContent=`已选择 ${file.name}。运行前还会检查参数、来源摘要和种子。`;
-  } catch(error){if(version!==fileVersion)return;node.textContent="这个文件还不能用于测试。";invalid("saved-policy",error);}
+   describeLoadedPolicy(value,`已选择 ${file.name}。运行前还会检查参数、来源摘要和种子。`);
+  } catch(error){if(version!==fileVersion)return;describeLoadedPolicy(null,"这个文件还不能用于测试。");invalid("saved-policy",error);}
  });
  document.querySelector("#use-latest-policy").addEventListener("click",()=>{
   if(!latest){invalid("saved-policy",Error("请先运行一次强化学习，或选择保存好的策略文件"));return;}
-  ++fileVersion;loaded=latest; savedForm.elements.checkpoint.value="";stale("saved-policy");
-  document.querySelector("#saved-policy-source").textContent="已载入刚才成功实验保存的策略，包括已用过的测试种子。";
+  ++fileVersion;savedForm.elements.checkpoint.value="";stale("saved-policy");
+  describeLoadedPolicy(latest,"已载入刚才成功实验保存的策略，包括已用过的测试种子。");
  });
  savedForm.addEventListener("submit",async event=>{
   event.preventDefault();if(window.labUI.isBusy())return;

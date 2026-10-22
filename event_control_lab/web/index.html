@@ -127,6 +127,12 @@
       <button type="submit">只测试，不训练</button>
     </form>
     <p id="saved-policy-source" class="hint">还没有载入策略。请选文件，或先运行上面的强化学习实验。</p>
+    <details id="saved-policy-history" hidden>
+      <summary>查看已用种子</summary>
+      <p class="hint">这些编号来自当前载入的策略记录。选择新编号前先核对一下；开始测试时，程序还会校验文件。</p>
+      <p id="saved-training-seeds" class="scope"></p>
+      <p id="saved-test-seeds" class="scope"></p>
+    </details>
     <p id="saved-policy-status" role="status" aria-live="polite">等待选择策略</p>
     <details id="saved-policy-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
     <div id="saved-policy-output" hidden></div>

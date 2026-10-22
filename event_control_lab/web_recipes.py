@@ -22,7 +22,7 @@ def error_message(detail):
     if any("\u4e00" <= char <= "\u9fff" for char in detail):
         return detail
     messages = (
-        ("Use new seeds", "这些种子里有之前用过的编号。请换一组新的种子。"),
+        ("Use new seeds", "这些种子里有之前用过的编号。展开“查看已用种子”核对一下，再换一组新的编号。"),
         ("must be disjoint", "训练和测试种子有重复，请分别选两组编号。"),
         ("checksum differs", "策略文件与保存时的摘要对不上。请重新选择原文件，不要手动改摘要。"),
         ("source differs", "当前代码与保存策略时的版本不同。请使用原版本测试，或重新训练后保存策略。"),
