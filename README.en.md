@@ -1,6 +1,6 @@
 # SparsiLoop · Event-triggered control lab
 
-Need to choose a communication threshold before inspecting test outcomes? The [planned selection workflow](docs/planned-study.md) saves a fixed rule and every candidate result, then evaluates the chosen schedule on declared test seeds in a separate command. It uses built-in plants and fixed feedback; failures remain visible and test outcomes never trigger reselection.
+Need to choose a communication threshold before inspecting test outcomes? Open the local web page, follow “先选发送方案，再复核”, and configure, save and test a choice without switching to a terminal. The [planned selection workflow](docs/planned-study.md) also supports separate CLI commands. Both paths save every candidate and failure, then test only the declared seeds without reselection. The web path uses built-in plants, fixed feedback, a 20 ms step, 0.2–8 seconds, at most 20,000 potential intervals and 8 MiB requests.
 
 **What happens to control error when you send fewer sensor messages?**
 

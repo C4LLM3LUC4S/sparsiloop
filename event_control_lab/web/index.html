@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SparsiLoop · 事件触发控制实验室</title>
-  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/study.js" defer></script><script src="/controllers.js" defer></script>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script><script src="/study.js" defer></script><script src="/controllers.js" defer></script><script src="/planned.js" defer></script>
 </head>
 <body>
 <header><a class="brand" href="/">SparsiLoop<span>EVENT-TRIGGERED CONTROL LAB</span></a><span class="badge">本地原型 · 0.0.1</span></header>
@@ -11,7 +11,7 @@
   <section class="intro"><p class="eyebrow">看看控制效果，也算算用了多少消息</p>
     <h1>少发消息，<br>还能控制好吗？</h1>
     <p class="lead">先选一个模型，再调整发送次数、延迟和丢包。用同一组条件比较三种发送策略，看看少发消息会带来什么变化。</p>
-    <p class="entry-links"><a href="#controller-title">试试 MFAC、ILC 和强化学习</a> · <a href="#saved-policy-title">重新测试保存的策略</a></p>
+    <p class="entry-links"><a href="#planned-title">先选发送方案，再复核</a> · <a href="#controller-title">试试 MFAC、ILC 和强化学习</a> · <a href="#saved-policy-title">重新测试保存的策略</a></p>
   </section>
   <div class="workspace">
     <aside class="panel settings"><h2>设置实验条件</h2>
@@ -137,6 +137,59 @@
     <details id="saved-policy-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
     <div id="saved-policy-output" hidden></div>
     <p class="hint">每次请另选种子，已有训练和测试种子会随策略保留。编号不同本身不证明统计独立；如果你根据这些结果改了参数，就要把它们记为探索，再另定测试方案。</p>
+  </section>
+  <section class="panel recipe-panel planned-panel" aria-labelledby="planned-title">
+    <h2 id="planned-title">先选一个发送方案，再换一组条件复核</h2>
+    <p class="scope">如果你想知道“最多发这么多条消息，哪个门槛能满足误差要求？”，可以从这里开始。先定好候选和两组种子，程序只用第一组选方案；第二组先留着，等你点击复核才运行。种子是随机输入的编号，分组本身不证明统计独立。</p>
+    <p class="hint">这里单独使用内置模型和固定反馈，把位置拉回 0；不训练 MFAC、ILC 或强化学习，也不读取上方表单的设置。它与事后按消息数配平的比较是两条不同流程。</p>
+    <h3>1. 先把这次任务定下来</h3>
+    <form id="planned-settings" class="recipe-form">
+      <label>要控制的模型<select name="plant"><option value="scalar">一阶系统：观察位置 x</option><option value="double_integrator">位置—速度系统：观察 p 和 v</option></select></label>
+      <label>每次模拟多少秒<input name="duration" type="number" min="0.2" max="8" step="0.02" value="4" required></label>
+      <label>每个方案最多尝试发送几条消息<input name="budget" type="number" min="0" max="400" step="1" value="40" required></label>
+      <label>每次位置 RMSE 不能超过多少<input name="rmse_limit" type="number" min="0.000001" max="100" step="any" value="0.4" required></label>
+      <p class="hint recipe-wide">RMSE 概括整个时段的位置偏差，越小越好；这个上限要求每次完整运行都达标，不是每个时刻的最大偏差限制。共同消息上限也不代表各方案实际发得一样多，丢掉的包仍占一次尝试。</p>
+      <label>绝对变化门槛，用英文逗号分隔<input name="absolute_thresholds" type="text" value="0.02,0.06,0.12,0.24" maxlength="200"></label>
+      <label>相对变化系数，用英文逗号分隔<input name="relative_thresholds" type="text" value="0.05,0.15,0.3" maxlength="200"></label>
+      <p class="hint recipe-wide">周期发送始终参加选择；两类门槛各最多 8 个，都可留空。程序先排除没跑完或误差超限的，再选平均尝试发送最少的；次数相同就比平均 RMSE，仍相同则按周期、绝对列表、相对列表的顺序选。</p>
+      <label>用来选方案的种子<input name="selection_seeds" type="text" value="3001,3002,3003" maxlength="80" required></label>
+      <label>留到下一步复核的种子<input name="test_seeds" type="text" value="4001,4002,4003" maxlength="80" required></label>
+      <label class="recipe-wide">以前调参已看过的种子（没有就留空）<input name="previously_used_seeds" type="text" value="" maxlength="6000"></label>
+      <p class="hint recipe-wide">选择和复核各用 1–5 个编号，三组不能重叠。工具只知道你填进来的历史，无法自动找出漏报的编号。初始状态保持下面的设置，种子改变的是噪声、扰动和丢包。</p>
+      <details class="recipe-wide"><summary>调整初始状态、网络和固定反馈</summary>
+        <div class="planned-config">
+          <label>初始位置<input name="initial_position" type="number" min="-5" max="5" step="any" value="1" required></label>
+          <label>初始速度（只用于位置—速度模型）<input name="initial_velocity" type="number" min="-5" max="5" step="any" value="0" required></label>
+          <label>消息延迟几个步长<input name="delay_steps" type="number" min="0" max="400" step="1" value="2" required></label>
+          <label>丢包概率<input name="loss_probability" type="number" min="0" max="1" step="any" value="0.05" required></label>
+          <label>测量噪声系数<input name="measurement_noise" type="number" min="0" max="2" step="any" value="0.005" required></label>
+          <label>每步输入扰动系数<input name="process_noise" type="number" min="0" max="2" step="any" value="0.01" required></label>
+          <label>事件策略最长发送间隔（秒）<input name="heartbeat" type="number" min="0.02" max="8" step="any" value="0.5" required></label>
+          <label>相对策略仍保留的绝对门槛<input name="threshold" type="number" min="0" max="2" step="any" value="0.06" required></label>
+          <label>位置反馈增益 kp<input name="kp" type="number" min="0" max="20" step="any" value="2" required></label>
+          <label>速度反馈增益 kd（只用于位置—速度模型）<input name="kd" type="number" min="0" max="20" step="any" value="2" required></label>
+          <label>指令绝对值上限<input name="input_limit" type="number" min="0.000001" max="20" step="any" value="4" required></label>
+          <label>状态范数到多少就停止<input name="state_limit" type="number" min="1" max="100" step="any" value="20" required></label>
+        </div>
+        <p class="hint">每步固定 20 ms，控制器只看已经到达的测量；首次到达前指令为 0，之后保持到下次到达。最长发送间隔向上取到采样网格，预算用完后不会继续发送。输入扰动在指令限幅后加入，噪声系数不是连续时间强度；模型和单位都是教学设定。</p>
+      </details>
+      <button type="submit">只运行选择阶段</button>
+    </form>
+    <p id="planned-selection-status" role="status" aria-live="polite">正在准备方案…</p>
+    <details id="planned-selection-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
+    <div id="planned-selection-output" hidden></div>
+    <h3>2. 按保存好的条件复核</h3>
+    <p class="scope">刚才的完整选择记录会留在页面里，也可以载入保存过的 selection.json。复核只按这份记录运行，不会用上方刚改过的参数替换它。刷新网页前，请下载并保留记录。</p>
+    <form id="planned-test-settings" class="recipe-form">
+      <label>或载入之前保存的选择记录<input name="selection" type="file" accept=".json,application/json"></label>
+      <button type="button" id="planned-use-latest">使用刚才生成的选择记录</button>
+      <button type="submit">按原计划复核，不重新选方案</button>
+    </form>
+    <p id="planned-record-source" class="scope">还没有选择记录。</p>
+    <p id="planned-test-status" role="status" aria-live="polite">等待选择阶段完成，或载入记录</p>
+    <details id="planned-test-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
+    <div id="planned-test-output" hidden></div>
+    <p class="hint">网页每次最多计算 20000 个选择与测试区间，完整记录最多 8 MiB；更大实验请用命令行。同一份记录再次复核属于重复执行，不是新的测试。若看过测试后继续调参，请把这些编号记入已用历史，再另定方案。</p>
   </section>
 </main>
 <footer>SparsiLoop · 在本机运行，不需要账户、API 密钥或 GPU。源码已公开，目前提供开发原型，尚无版本下载包。</footer>

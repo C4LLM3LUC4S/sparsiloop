@@ -33,6 +33,7 @@ import io
 import zipfile
 from event_control_lab.policy import checkpoint, evaluate_policy
 from event_control_lab.planned_study import PlannedSpec, select_schedule, test_schedule
+from event_control_lab.web_planned import default_specification as planned_default
 
 config = Config(duration=0.8, budget=4, heartbeat=0.2, measurement_noise=0,
                 process_noise=0, loss_probability=0)
@@ -48,6 +49,10 @@ planned_spec = PlannedSpec(config=Config(duration=0.8, dt=0.1, budget=8, heartbe
     test_seeds=(93, 94), rmse_limit=100)
 planned_selection = select_schedule(planned_spec)
 planned_test = test_schedule(planned_selection)
+web_planned_spec = PlannedSpec.from_dict(planned_default())
+web_planned_spec = replace(web_planned_spec, config=replace(web_planned_spec.config, duration=0.2,
+    heartbeat=0.2, budget=10), selection_seeds=(801,), test_seeds=(802,))
+web_selection = select_schedule(web_planned_spec)
 
 adapter = PlantAdapter("installed-package constant model", "scalar",
                        lambda config: lambda state, held_input, dt: (0.5,),
@@ -82,6 +87,8 @@ try:
          "controllers.json", controller_lab(learning_spec, "ilc")),
         ("/api/evaluate-policy", {"checkpoint": checkpoint(learning), "seeds": [3001]},
          "evaluation.json", evaluate_policy(checkpoint(learning), [3001])),
+        ("/api/planned/select", {"spec": asdict(web_planned_spec)}, "selection.json", web_selection),
+        ("/api/planned/test", {"selection": web_selection}, "test.json", test_schedule(web_selection)),
     ):
         connection = HTTPConnection("127.0.0.1", server.server_port, timeout=10)
         try:
@@ -110,7 +117,7 @@ print(json.dumps({
     "version": event_control_lab.__version__,
     "runtime_dependencies": data.get_all("Requires-Dist", []) if data else None,
     "static_sha256": {name: hashlib.sha256(resources.files("event_control_lab.web").joinpath(name).read_bytes()).hexdigest()
-                      for name in ("index.html", "style.css", "app.js", "study.js", "controllers.js")},
+                      for name in ("index.html", "style.css", "app.js", "study.js", "controllers.js", "planned.js")},
     "compare": single, "study": scanned, "grid_check": grid_check(GridSpec(config)),
     "controller_lab": learning,
     "planned_selection": planned_selection, "planned_test": planned_test,
