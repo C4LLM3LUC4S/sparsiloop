@@ -46,6 +46,8 @@ result = compare(Config(), plant=model)
 
 `compare(config, controller_factory=..., plant=model)` 同时接自己的控制器；`study(spec, controller_factory=..., plant=model)` 和 `controller_lab(spec, method="ilc", plant=model)` 复用同一模型。控制器仍只收到 `Observation(values, sample_time, arrival_time)`；模型收到真状态、限幅控制加该步扰动以及 `dt`。这是本地调用约定，并非恶意代码沙箱；网页不接收模型代码。
 
+想在同一对象上先选发送门槛，再换一组条件复核？见[本地模型选择流程](planned-models.md)。它要求模型的 `source_sha256`，保存完整声明，下一次必须显式传入匹配模型；原有接口中可选的来源记录，不因此变成自动认证。
+
 ## 布局、时间和重置
 
 - `scalar` 是一维输出；`double_integrator` 在适配器中选择**位置、速度**布局，不表示采用内置双积分方程。`Config.plant` 必须匹配布局；实际动力学以 `plant.kind=local_python_adapter` 和声明为准。

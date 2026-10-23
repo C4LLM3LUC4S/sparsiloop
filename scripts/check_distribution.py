@@ -68,6 +68,12 @@ custom_compare = compare(config, plant=adapter)
 custom_study = study(spec, plant=adapter)
 custom_learning = controller_lab(learning_spec, plant=adapter)
 assert all(run["trajectory"][1]["state"] == [0.5] for run in custom_compare["runs"])
+planned_adapter = replace(adapter, source="Retained inline fixture: lambda config: lambda state, held_input, dt: (0.5,)",
+    source_sha256=hashlib.sha256(b"lambda config: lambda state, held_input, dt: (0.5,)").hexdigest())
+model_choice = select_with_context(planned_spec, plant=planned_adapter)
+model_test = test_with_context(model_choice, plant=planned_adapter)
+assert model_test["context"]["selection"] == model_choice["context"]["selection"]
+assert all(row["run"]["plant"] == planned_adapter.metadata() for row in model_test["result"]["test_runs"])
 
 class QuietHandler(Handler):
     def log_message(self, *args):
@@ -144,6 +150,7 @@ print(json.dumps({
     "compare": single, "study": scanned, "grid_check": grid_check(GridSpec(config)),
     "controller_lab": learning,
     "planned_selection": planned_selection, "planned_test": planned_test,
+    "custom_planned": {"selection": model_choice["result"], "test": model_test["result"]},
     "custom_model": {"compare": custom_compare, "study": custom_study, "controller_lab": custom_learning},
     "installed_http_api_matches_direct_calls": api_checks,
 }))
@@ -215,7 +222,7 @@ def main():
             raise ValueError("unexpected runtime dependency")
         if installed["distribution"] != "sparsiloop" or installed["runtime_dependencies"] is None:
             raise ValueError("installed distribution metadata is missing or misnamed")
-        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "custom_model", "planned_selection", "planned_test"):
+        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "custom_model", "planned_selection", "planned_test", "custom_planned"):
             if installed[key] != source[key]:
                 raise ValueError(f"installed/source mismatch: {key}")
         for command in ("sparsiloop", "event-control-lab"):
@@ -268,7 +275,8 @@ def main():
                      "examples/grid-check.json", "examples/own_model_case.py", "docs/own-model.md", "scripts/check_distribution.py", "docs/planned-study.md",
                      "examples/planned-study.json", "event_control_lab/planned_study.py",
                      "event_control_lab/planned_report.py", "event_control_lab/planned_cli.py",
-                     "event_control_lab/planned_context.py"):
+                     "event_control_lab/planned_context.py", "event_control_lab/planned_models.py",
+                     "examples/planned_model_case.py", "docs/planned-models.md"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -287,6 +295,16 @@ def main():
             raise ValueError("custom-model recipe did not retain its own source fingerprint")
         if not (model_output / "controllers/report.html").is_file():
             raise ValueError("custom-model recipe did not produce its learning report")
+        model_choice_output, model_test_output = base / "model choice", base / "model test"
+        run([str(python), "-m", "examples.planned_model_case", "select", "--spec", str(planned_spec),
+             "--out", str(model_choice_output)], extracted, logs, "extracted-model-select")
+        run([str(python), "-m", "examples.planned_model_case", "test",
+             str(model_choice_output / "selection-bundle.json"), "--decay", "0.4", "--gain", "1.2",
+             "--out", str(model_test_output)], extracted, logs, "extracted-model-test")
+        model_record = json.loads((model_test_output / "test.json").read_text(encoding="utf-8"))
+        if (not model_record["test_runs"] or model_record["selection"]["model"]["source_sha256"]
+                != hashlib.sha256(model_source.read_bytes()).hexdigest()):
+            raise ValueError("extracted planned model case did not preserve source and declared tests")
         tests = run([str(python), "-m", "unittest", "discover", "-s", "tests", "-v"],
                     extracted, logs, "fresh-source-tests")
         count = re.search(r"Ran (\d+) tests", tests.stderr)
@@ -305,6 +323,8 @@ def main():
             "installed_planned_selection_and_test_match_source": True,
             "installed_planned_context_bundle_and_render": True,
             "installed_custom_model_compare_study_learning_match_source": True,
+            "installed_custom_planned_selection_and_test_match_source": True,
+            "extracted_local_model_separate_selection_and_test": True,
             "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),
