@@ -20,7 +20,12 @@ function setBusy(value){
  busy=value;
  document.querySelectorAll("form input,form select,form button").forEach(node=>node.disabled=value || node.dataset.locked==="true");
 }
-window.labUI={config:currentConfig,setBusy,isBusy:()=>busy};
+function rememberPolicy(value) {
+ const result=window.labPolicyMemory.remember(value);
+ window.dispatchEvent(new CustomEvent('sparsiloop-policy-saved',{detail:result.value}));
+ return result;
+}
+window.labUI={config:currentConfig,setBusy,isBusy:()=>busy,rememberPolicy};
 async function run(event){
  if(event)event.preventDefault();
  if(!defaults||busy)return;

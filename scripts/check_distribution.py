@@ -222,7 +222,7 @@ print(json.dumps({
     "version": event_control_lab.__version__,
     "runtime_dependencies": data.get_all("Requires-Dist", []) if data else None,
     "static_sha256": {name: hashlib.sha256(resources.files("event_control_lab.web").joinpath(name).read_bytes()).hexdigest()
-                      for name in ("index.html", "style.css", "app.js", "study.js", "controllers.js", "planned.js")},
+                      for name in ("index.html", "style.css", "app.js", "study.js", "controllers.js", "planned.js", "policy-memory.js")},
     "compare": single, "study": scanned, "grid_check": grid_check(GridSpec(config)),
     "controller_lab": learning,
     "planned_selection": planned_selection, "planned_test": planned_test,
@@ -400,7 +400,8 @@ def main():
                      "event_control_lab/planned_policy.py", "docs/planned-policy.md", "examples/planned-frozen-policy.json",
                      "event_control_lab/policy_journal.py", "event_control_lab/policy_journal_report.py",
                      "event_control_lab/policy_journal_cli.py", "event_control_lab/web_journal.py",
-                     "tests/test_web_journal.py", "docs/policy-history.md", "examples/continued-policy-plan.json"):
+                     "tests/test_web_journal.py", "tests/web_history_memory.test.js", "event_control_lab/web/policy-memory.js",
+                     "docs/policy-history.md", "examples/continued-policy-plan.json"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -434,6 +435,15 @@ def main():
         count = re.search(r"Ran (\d+) tests", tests.stderr)
         if not count or not re.search(r"(?m)^OK(?: \(skipped=\d+\))?\s*$", tests.stderr):
             raise ValueError("source-distribution test result was not recognized")
+        node = shutil.which("node")
+        web_tests = None
+        if node:
+            browser_memory = run([node, "--test", "--test-reporter=tap", str(extracted / "tests/web_history_memory.test.js")],
+                                 extracted, logs, "fresh-web-memory-tests")
+            web_count = re.search(r"(?m)^# tests (\d+)\s*$", browser_memory.stdout)
+            if not web_count:
+                raise ValueError("web history-memory test result was not recognized")
+            web_tests = int(web_count.group(1))
         summary = {
             "status": "passed", "distribution": installed["distribution"], "version": installed["version"],
             "python_version": sys.version.split()[0], "platform": sys.platform,
@@ -457,6 +467,7 @@ def main():
             "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),
+            "fresh_web_memory_tests_passed": web_tests,
             "publicly_released": False,
             "github_actions_invocation": os.environ.get("GITHUB_ACTIONS") == "true",
             "verification_scope": "This invocation only; other platforms and Python versions are not inferred",

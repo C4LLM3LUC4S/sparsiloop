@@ -133,8 +133,11 @@
   output.append(element("p",failures ? "下一步先看哪些运行没跑完，以及停止时间和原因。改条件后另存一份结果，保留这次失败。" :
    "先在同一种方法、同一组条件下比较误差和实际消息数。ILC 可以看前后轮次；强化学习要看测试阶段，训练成绩不能代替测试，也不要把不同方法直接排成总榜。","scope"));
   if(result.continuation_note)output.append(element('p',result.continuation_note,'scope'));
-  latest = result.policy_history || result.checkpoint || null;
-  if(latest)window.dispatchEvent(new CustomEvent("sparsiloop-policy-saved",{detail:latest}));
+  const memory=result.policy_history||result.checkpoint;
+  const remembered=memory?window.labUI.rememberPolicy(memory):null;
+  latest=remembered?.value||null;
+  if(remembered?.retained)output.append(element('p',remembered.message,'scope'),
+   button('另存页面保留的后续完整历史',()=>download('policy-history.json',JSON.stringify(remembered.value,null,2),'application/json')));
   if(prefix === "saved-policy" && result.checkpoint) {
    describeLoadedPolicy(latest,"当前页面已记住这次的策略与历史。下次接着用，请另存最新的完整历史；原始策略仍可单独保存。");
   }
