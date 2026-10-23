@@ -1,8 +1,8 @@
 # SparsiLoop · Event-triggered control lab
 
-**Compare control error with the messages it actually costs.**
+**What happens to control error when you send fewer sensor messages?**
 
-SparsiLoop is a local lab for students and control researchers to compare event-triggered and periodic feedback under packet budgets, delay and loss. Inspect every message, keep failed cases visible and export reproducible trajectories and metrics.
+Try it on your computer: set a message limit, delay and loss probability, then compare regular sending with sending when measurements change. See where errors grow, check which messages arrived and save the results for analysis. The teaching models give you a starting point; a Python adapter lets you bring your own model.
 
 [中文](README.md) · [Protocol](docs/protocol.md) · [Post-hoc traffic study](docs/traffic-study.md) · [Grid check](docs/grid-check.md)
 
@@ -49,6 +49,8 @@ python -m unittest discover -s tests -v
 Output folders must be new. Full JSON includes configurations, source fingerprints, external random inputs, packet accounting and raw trajectories. Study exports retain every declared pair and its eligibility reasons; failures do not receive a zero score. Post-hoc references use observed traffic after each event run, so they are descriptive diagnostics, not prospective tuning or independent performance evidence.
 
 ## Use your own controller
+
+Have your own dynamics? The [local plant adapter](docs/own-model.md) connects a declared single-input scalar or position–velocity model to network comparisons, post-hoc references and MFAC/ILC/RL recipes. Run `python -m examples.own_model_case --out runs/own-model` for a complete report. Retain model source, parameters, units and an independent known-input check. See [product tasks and acceptance](docs/product-scope.md).
 
 ```python
 from event_control_lab import Config, compare

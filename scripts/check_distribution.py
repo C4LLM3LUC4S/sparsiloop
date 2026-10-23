@@ -24,7 +24,7 @@ from pathlib import Path
 from threading import Thread
 import hashlib
 import event_control_lab
-from event_control_lab import Config, GridSpec, StudySpec, compare, grid_check, study
+from event_control_lab import Config, GridSpec, PlantAdapter, StudySpec, compare, grid_check, study
 from event_control_lab.server import Handler
 from event_control_lab.controller_lab import ControllerLabSpec, controller_lab
 from dataclasses import replace
@@ -37,6 +37,13 @@ learning_spec = ControllerLabSpec()
 learning_spec = replace(learning_spec, config=replace(learning_spec.config, duration=0.2, budget=10),
                         ilc_trials=2, training_seeds=(101, 102), evaluation_seeds=(2001,))
 learning = controller_lab(learning_spec)
+adapter = PlantAdapter("installed-package constant model", "scalar",
+                       lambda config: lambda state, held_input, dt: (0.5,),
+                       parameters={"constant": 0.5}, source="original distribution-check fixture")
+custom_compare = compare(config, plant=adapter)
+custom_study = study(spec, plant=adapter)
+custom_learning = controller_lab(learning_spec, plant=adapter)
+assert all(run["trajectory"][1]["state"] == [0.5] for run in custom_compare["runs"])
 
 class QuietHandler(Handler):
     def log_message(self, *args):
@@ -76,6 +83,7 @@ print(json.dumps({
                       for name in ("index.html", "style.css", "app.js", "study.js")},
     "compare": single, "study": scanned, "grid_check": grid_check(GridSpec(config)),
     "controller_lab": learning,
+    "custom_model": {"compare": custom_compare, "study": custom_study, "controller_lab": custom_learning},
     "installed_http_api_matches_direct_calls": api_checks,
 }))
 '''
@@ -146,7 +154,7 @@ def main():
             raise ValueError("unexpected runtime dependency")
         if installed["distribution"] != "sparsiloop" or installed["runtime_dependencies"] is None:
             raise ValueError("installed distribution metadata is missing or misnamed")
-        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab"):
+        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "custom_model"):
             if installed[key] != source[key]:
                 raise ValueError(f"installed/source mismatch: {key}")
         for command in ("sparsiloop", "event-control-lab"):
@@ -167,7 +175,7 @@ def main():
             raise ValueError("installed controller CLI omitted required outputs")
         extracted = extract_source(archive, base / "fresh source")
         for path in ("README.md", "README.en.md", "BRANDING.md", "START_HERE.md", "quickstart.py", "docs/grid-check.md",
-                     "examples/grid-check.json", "scripts/check_distribution.py"):
+                     "examples/grid-check.json", "examples/own_model_case.py", "docs/own-model.md", "scripts/check_distribution.py"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -177,6 +185,15 @@ def main():
         run([str(python), "-I", str(extracted / "quickstart.py"), "--mode", "controllers",
              "--method", "ilc", "--no-open", "--out", str(base / "extracted quickstart output")],
             base, logs, "extracted-quickstart")
+        model_output = base / "extracted own model output"
+        run([str(python), "-m", "examples.own_model_case", "--out", str(model_output)],
+            extracted, logs, "extracted-own-model-case")
+        model_result = json.loads((model_output / "network/result.json").read_text(encoding="utf-8"))
+        model_source = extracted / "examples/own_model_case.py"
+        if model_result["plant"]["source_sha256"] != hashlib.sha256(model_source.read_bytes()).hexdigest():
+            raise ValueError("custom-model recipe did not retain its own source fingerprint")
+        if not (model_output / "controllers/report.html").is_file():
+            raise ValueError("custom-model recipe did not produce its learning report")
         tests = run([str(python), "-m", "unittest", "discover", "-s", "tests", "-v"],
                     extracted, logs, "fresh-source-tests")
         count = re.search(r"Ran (\d+) tests", tests.stderr)
@@ -192,6 +209,8 @@ def main():
             "static_resources_match_source": True,
             "both_command_entry_points": True, "installed_grid_cli": True,
             "installed_controller_cli_and_result_parity": True,
+            "installed_custom_model_compare_study_learning_match_source": True,
+            "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),
             "publicly_released": False,
