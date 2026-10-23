@@ -40,11 +40,12 @@
   value.append(body);wrap.append(value);return wrap;
  }
  function button(text,action){const b=node("button",text);b.type="button";b.addEventListener("click",action);return b;}
- function conditions(record,testing) {
+ function conditions(record,testing,ran=true) {
   const section=node("div"), spec=record.spec, c=spec.config;
   const state=c.plant==="scalar"?`一阶模型，初始位置 ${c.initial_position}`:`位置—速度模型，初始位置 ${c.initial_position}、初始速度 ${c.initial_velocity}`;
   section.append(node("p",`${state}，目标位置 0；每次 ${c.duration} 秒、每步 ${c.dt} 秒，尝试发送上限 ${c.budget}，每次完整时段的位置 RMSE 要不超过 ${spec.rmse_limit}。`,"scope"));
-  section.append(node("p",`${testing?"本次复核":"本次选择"}种子：${(testing?spec.test_seeds:spec.selection_seeds).join(", ")}。${testing?"选择记录保持原样。":"预留复核种子："+spec.test_seeds.join(", ")+"，这一步还没有运行。"}`,"scope"));
+  const stage=testing?(ran?"本次运行的复核种子":"预留复核种子（本次未运行）"):"本次选择种子";
+  section.append(node("p",`${stage}：${(testing?spec.test_seeds:spec.selection_seeds).join(", ")}。${testing?"选择记录保持原样。":"预留复核种子："+spec.test_seeds.join(", ")+"，这一步还没有运行。"}`,"scope"));
   const details=node("details");details.append(node("summary","查看完整条件和记录编号"),node("p",`记录摘要：${record.record_sha256}`,"hint"),node("pre",JSON.stringify(spec,null,2)));
   section.append(details);return section;
  }
@@ -73,11 +74,12 @@
    const messages={met_declared_tests:"所选方案在这次每个复核种子下都完整结束，而且位置误差达标。",
     did_not_meet_declared_tests:"所选方案没有通过这次全部要求，仍保留原来的选择，没有改选。",
     not_run_no_eligible_choice:"选择阶段没有合格候选，这次没有运行任何测试种子。"};
-   target.append(node("h3",messages[record.status]),conditions(choice,true));
+   target.append(node("h3",messages[record.status]),conditions(choice,true,record.test_runs.length>0));
    target.append(table(["用途","方案","种子","运行情况","位置 RMSE","尝试发送","到达","原因"],record.test_runs.map(r=>[
     r.roles.length===2?"所选方案 / 周期对照":r.roles.includes("selected")?"所选方案":"周期对照",names.get(r.candidate_id),r.seed,
     statuses[r.run.status]||r.run.status,number(r.run.metrics.position_rmse),r.run.packets.attempted,r.run.packets.delivered,r.run.error||"—"])));
-   target.append(node("p","先看有没有跑完，再看每个种子是否达标，以及实际用了多少条消息。周期对照沿用相同上限，不会按事件策略的实际流量改预算。若据此调参，这批数据就成了开发数据，后续需要另定方案。","scope"));
+   target.append(node("p",record.test_runs.length?"先看有没有跑完，再看每个种子是否达标，以及实际用了多少条消息。周期对照沿用相同上限，不会按事件策略的实际流量改预算。若据此调参，这批数据就成了开发数据，后续需要另定方案。":
+    "请回到选择结果，先查提前停止或误差超限的原因。保留这份未运行记录；若决定修改方案，请记下已经看过的种子，再另存一份新方案。","scope"));
   }
   const downloads=node("div",undefined,"downloads");
   downloads.append(button("下载这一步的完整报告 ZIP",()=>download(`sparsiloop-planned-${mode}-${Date.now()}.zip`,
