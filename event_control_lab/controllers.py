@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
+import random
 
 
 def number(value, name, low, high):
@@ -14,6 +15,19 @@ def number(value, name, low, high):
 
 def clip(value, limit):
     return max(-limit, min(limit, value))
+
+
+def canonical_json(value):
+    """Hash JSON numbers by value: a browser may write 1.0 as 1."""
+    def normalize(item):
+        if isinstance(item, dict):
+            return {key: normalize(child) for key, child in item.items()}
+        if isinstance(item, (list, tuple)):
+            return [normalize(child) for child in item]
+        if type(item) is float and item.is_integer():
+            return int(item)
+        return item
+    return json.dumps(normalize(value), sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
 def received(observation, config, last=None, regular=False):
@@ -191,7 +205,7 @@ class QTable:
                 "rows": [{"state": list(key), "q": list(self.values[key])} for key in sorted(self.values)]}
 
     def fingerprint(self):
-        body = json.dumps(self.snapshot(), sort_keys=True, separators=(",", ":"), allow_nan=False)
+        body = canonical_json(self.snapshot())
         return hashlib.sha256(body.encode()).hexdigest()
 
     @classmethod
@@ -218,6 +232,10 @@ class QTable:
                 raise ValueError("invalid or duplicate Q checkpoint state")
             result.values[tuple(state)] = tuple(number(x, "Q value", -1e100, 1e100) for x in row)
         return result
+
+
+def initial_position(seed):
+    return random.Random(seed ^ 0x494E4954).uniform(-1.5, 1.5)
 
 
 class QController:

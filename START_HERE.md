@@ -24,6 +24,8 @@ python quickstart.py --mode controllers
 
 三个案例的条件不同，不能按分数直接排名。报告保留每轮结果和失败原因，完整公式见 [经典控制案例](docs/classic-controllers.md)。
 
+已经训练过，想换几个随机种子再测一次？用 `python -m event_control_lab evaluate-policy runs/controllers/policy-checkpoint.json --seeds 2001,2002 --out runs/new-test`。这里的 `runs/controllers` 要换成你实际保存报告的目录。这次不会重新训练，详见[保存策略再测试](docs/saved-policy.md)。
+
 想换成自己的模型：先运行 `python -m examples.own_model_case --out runs/own-model`，打开新目录中的 `report.html`。报告会带你查看一个简化执行器在减少消息后的表现，再尝试三种控制方法。熟悉流程后，按[模型接入说明](docs/own-model.md)替换示例中的模型。先用已知输入检查计算结果，再比较控制效果。
 
 网页上的“运行比较”只比较三种**发送策略**；MFAC、ILC 和强化学习目前从上面的命令进入。两者是不同的实验入口。

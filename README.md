@@ -38,6 +38,8 @@ python -m event_control_lab controller-lab --out runs/controllers
 
 ## 保存可重复结果
 
+强化学习训练后的策略可以[重新加载后单独测试](docs/saved-policy.md)，不需要重跑训练。新入口会核对训练时的时间步长、时域和输入上限，在新种子下输出独立报告；目前支持内置一阶模型。
+
 ```powershell
 python -m event_control_lab compare --config examples/default.json --out runs/first
 python -m unittest discover -s tests -v

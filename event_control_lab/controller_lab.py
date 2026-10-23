@@ -10,7 +10,7 @@ import platform
 import random
 
 from . import controllers, engine
-from .controllers import CFDLMFAC, MFACParameters, QController, QParameters, QTable, TrialILC, ilc_next, number
+from .controllers import CFDLMFAC, MFACParameters, QController, QParameters, QTable, TrialILC, ilc_next, initial_position, number
 from .engine import Config, compare, make_trace, simulate
 
 
@@ -86,10 +86,6 @@ def single(config, controller, plant=None):
     trace, digest = make_trace(config)
     return {"config": asdict(config), "exogenous_trace": trace,
             "exogenous_trace_sha256": digest, "run": simulate(config, "periodic", controller, trace, plant=plant)}
-
-
-def initial_position(seed):
-    return random.Random(seed ^ 0x494E4954).uniform(-1.5, 1.5)
 
 
 def run_mfac(spec, plant=None):
@@ -197,6 +193,8 @@ def records(result):
                 yield method, "training", str(episode["seed"]), episode["config"], episode["run"]
             for evaluation in case["evaluation"]:
                 for label in ("trained", "untrained", "linear_feedback"):
+                    if label not in evaluation:
+                        continue
                     comparison = evaluation[label]
                     for run in comparison["runs"]:
                         yield method, "evaluation_" + label, str(evaluation["seed"]), comparison["config"], run
@@ -210,6 +208,11 @@ def export_controller_lab(result, destination):
     if "rl" in result["cases"]:
         (destination / "policy.json").write_text(
             json.dumps(result["cases"]["rl"]["frozen_table"], indent=2, allow_nan=False) + "\n", encoding="utf-8")
+        if not result.get("evaluation_only") and "plant" not in result:
+            from .policy import checkpoint
+
+            (destination / "policy-checkpoint.json").write_text(
+                json.dumps(checkpoint(result), indent=2, allow_nan=False) + "\n", encoding="utf-8")
     table, training_table = [], []
     with (destination / "summary.csv").open("x", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
@@ -255,9 +258,21 @@ section{background:white;border:1px solid #ccdce4;border-radius:12px;padding:20p
 <li><b>强化学习：</b>先训练，再固定学到的策略，用另一组初始状态和随机条件测试。测试阶段不会继续学习；报告也列出未训练策略和固定反馈控制的结果，方便对照。</li>
 <li>位置误差 RMSE 越小，表示整个时段内越接近目标。运行未完成时，这项分数不可用，不能当作零。</li>
 <li>MFAC、ILC 使用固定间隔的完整测量，强化学习的网络测试还加入了延迟等条件。请在相同条件内比较，不直接给三种方法排总名次。</li></ul>
-<p><a href="controllers.json">下载完整设置、训练记录和策略（JSON）</a> · <a href="summary.csv">下载结果表（CSV）</a> · <a href="trajectories.csv">下载全部轨迹（CSV）</a></p></section>
+<p><a href="controllers.json" download>下载完整设置、训练记录和策略（JSON）</a> · <a href="summary.csv" download>下载结果表（CSV）</a> · <a href="trajectories.csv" download>下载全部轨迹（CSV）</a></p></section>
 <section><h2>各阶段的运行结果</h2><p>表格较宽，可以左右滚动；用键盘时，先选中表格区域，再按方向键。</p><div class="scroll" tabindex="0" role="region" aria-label="控制案例结果表"><table>"""
+    if result.get("evaluation_only"):
+        page = page.replace("<title>SparsiLoop · 经典控制案例</title>", "<title>SparsiLoop · 保存策略的测试结果</title>")
+        page = page[:page.index("<h1>")] + '''<h1>SparsiLoop · 重新测试保存的策略</h1>
+<p>这次没有重新训练。先看每次测试是否跑完，再比较相同条件下的位置误差和发送次数。</p>
+<section><h2>这次测试说明什么？</h2><p>程序加载已经固定的策略，用一组新的种子生成初始位置和随机条件，同时运行固定反馈作为对照。时间步长、时域和输入上限保留训练时的设置；测试结果不会用来选择或修改策略。</p>
+<p>结果里的 N/A 表示没有完整时段的分数，不是零误差。相同发送上限也不表示实际发送次数相同。</p>
+<p><a href="evaluation.json" download>下载训练条件与本次完整结果（JSON）</a> · <a href="summary.csv" download>下载结果表（CSV）</a> · <a href="trajectories.csv" download>下载轨迹（CSV）</a></p></section>
+<section><h2>新种子下的测试结果</h2><div class="scroll" tabindex="0" role="region" aria-label="控制案例结果表"><table>'''
     page += header + "".join(table) + "</table></div></section>"
+    if result.get("evaluation_only"):
+        page += '<section><h2>这次只测试保存的策略</h2><p>没有重新训练，也没有用这些结果挑选策略。下面只保留保存的策略和固定反馈对照；训练条件、旧种子和本次全部结果见 <a href="evaluation.json" download>完整评测记录</a>。</p></section>'
+    elif "rl" in result["cases"] and "plant" not in result:
+        page += '<p><a href="policy-checkpoint.json" download>保存策略和训练条件，留到下次单独测试（JSON）</a></p>'
     if "plant" in result:
         model = result["plant"]
         page += '<section><h2>这次用了哪个模型？</h2><p>' + html.escape(model["name"]) + '</p>'
@@ -267,6 +282,30 @@ section{background:white;border:1px solid #ccdce4;border-radius:12px;padding:20p
         page += '<section><details><summary>查看全部训练过程（不作为测试结果）</summary><div class="scroll" tabindex="0" role="region" aria-label="全部训练记录表"><table>'
         page += header + "".join(training_table) + "</table></div></details></section>"
     if "rl" in result["cases"]:
-        page += '<p><a href="policy.json">保存训练后的策略，供以后重新加载（JSON）</a></p>'
+        if result.get("evaluation_only"):
+            page += '<p><a href="policy-checkpoint.json" download>保存策略和已用过的测试种子，下次接着测试</a></p>'
+        page += '<details><summary>需要底层 Python 接口时</summary><p><a href="policy.json" download>下载原始 Q 表（不含完整时间和来源记录）</a></p></details>'
     page += '<section><h2>看完后可以做什么？</h2><p>先检查是否有提前停止的运行，再在相同条件下比较位置误差和实际消息数。如果要改参数，请另存一次实验，保留原来的结果。训练记录、ILC 的重复任务和强化学习的测试回答不同问题，分开阅读。</p><details><summary>适用条件与 English overview</summary><p>当前 MFAC、ILC 要求按固定间隔收到完整测量，训练中无延迟、丢包或噪声。这些教学结果不证明稳定性、最优性、真实设备效果或论文复现。</p><p>Read each method in its own stage: MFAC estimates during a run; ILC learns across repeated tasks; RL trains first and tests a fixed policy on held-out conditions. Training rows are kept separate. Check failures and actual message counts before comparing errors. These teaching recipes do not certify stability or hardware performance.</p></details></section></html>'
     (destination / "report.html").write_text(page, encoding="utf-8")
+
+
+def export_policy_evaluation(result, destination):
+    from .policy import checkpoint_digest
+
+    view = {"cases": {"rl": {"training": [], "frozen_table": result["checkpoint"]["table"],
+                              "evaluation": [{"seed": case["seed"], "trained": case["policy"],
+                                              "linear_feedback": case["linear_feedback"]}
+                                             for case in result["cases"]]}},
+            "evaluation_only": True, "source_checkpoint": result["checkpoint"],
+            "evaluation_seeds": result["evaluation_seeds"],
+            "frozen_before_sha256": result["frozen_before_sha256"],
+            "frozen_after_sha256": result["frozen_after_sha256"]}
+    export_controller_lab(view, destination)
+    folder = Path(destination)
+    saved = dict(result["checkpoint"])
+    saved["previous_evaluation_seeds"] = saved["previous_evaluation_seeds"] + result["evaluation_seeds"]
+    saved["checkpoint_sha256"] = checkpoint_digest(saved)
+    (folder / "policy-checkpoint.json").write_text(json.dumps(saved, indent=2, allow_nan=False) + "\n",
+                                                 encoding="utf-8")
+    (folder / "evaluation.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+                                            encoding="utf-8")
