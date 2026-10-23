@@ -34,6 +34,7 @@ import zipfile
 from event_control_lab.policy import checkpoint, evaluate_policy
 from event_control_lab.planned_study import PlannedSpec, select_schedule, test_schedule
 from event_control_lab.web_planned import default_specification as planned_default
+from event_control_lab.planned_context import as_bundle, select_with_context, test_with_context, validate_context
 
 config = Config(duration=0.8, budget=4, heartbeat=0.2, measurement_noise=0,
                 process_noise=0, loss_probability=0)
@@ -53,6 +54,12 @@ web_planned_spec = PlannedSpec.from_dict(planned_default())
 web_planned_spec = replace(web_planned_spec, config=replace(web_planned_spec.config, duration=0.2,
     heartbeat=0.2, budget=10), selection_seeds=(801,), test_seeds=(802,))
 web_selection = select_schedule(web_planned_spec)
+contextual_choice = select_with_context(planned_spec)
+contextual_test = test_with_context(contextual_choice)
+assert contextual_choice["result"] == planned_selection
+assert contextual_test["result"] == planned_test
+assert contextual_test["context"]["selection"] == contextual_choice["context"]["selection"]
+validate_context(contextual_test["context"], contextual_test["result"])
 
 adapter = PlantAdapter("installed-package constant model", "scalar",
                        lambda config: lambda state, held_input, dt: (0.5,),
@@ -70,6 +77,7 @@ server = ThreadingHTTPServer(("127.0.0.1", 0), QuietHandler)
 worker = Thread(target=server.serve_forever, daemon=True)
 worker.start()
 api_checks = {}
+web_saved_bundle = None
 try:
     for route, payload, expected in (("/api/compare", asdict(config), single),
                                      ("/api/study", asdict(spec), scanned)):
@@ -90,6 +98,9 @@ try:
         ("/api/planned/select", {"spec": asdict(web_planned_spec)}, "selection.json", web_selection),
         ("/api/planned/test", {"selection": web_selection}, "test.json", test_schedule(web_selection)),
     ):
+        if route == "/api/planned/test":
+            assert web_saved_bundle is not None
+            payload = {"selection": web_saved_bundle}
         connection = HTTPConnection("127.0.0.1", server.server_port, timeout=10)
         try:
             connection.request("POST", route, body=json.dumps(payload))
@@ -100,6 +111,18 @@ try:
                 assert archive.testzip() is None
                 api_checks[route] = json.loads(archive.read(expected_file)) == json.loads(json.dumps(expected))
                 assert api_checks[route], route
+                if route.startswith("/api/planned/"):
+                    saved = as_bundle(json.loads(archive.read("selection-bundle.json")))
+                    manifest = json.loads(archive.read("environment.json"))
+                    assert manifest["execution"] == result["context"]
+                    assert manifest["report_rendering"] == result["report_runtime"]
+                    validate_context(result["context"], result["record"])
+                    if route.endswith("/select"):
+                        web_saved_bundle = saved
+                        assert saved["context"]["selection"]["state"] == "recorded"
+                    else:
+                        assert result["context"]["selection"] == web_saved_bundle["context"]["selection"]
+                        assert as_bundle(json.loads(archive.read("test-bundle.json")))["result"] == result["record"]
         finally:
             connection.close()
 finally:
@@ -217,19 +240,35 @@ def main():
         run([str(python), "-I", "-m", "event_control_lab.planned_study", "select", "--spec",
              str(planned_spec), "--out", str(chosen)], base, logs, "installed-planned-select")
         original = (chosen / "selection.json").read_bytes()
+        original_bundle = (chosen / "selection-bundle.json").read_bytes()
         if json.loads(original) != installed["planned_selection"]:
             raise ValueError("installed planned selection CLI differs from API")
         run([str(python), "-I", "-m", "event_control_lab.planned_study", "test",
-             str(chosen / "selection.json"), "--out", str(tested)], base, logs, "installed-planned-test")
+             str(chosen / "selection-bundle.json"), "--out", str(tested)], base, logs, "installed-planned-test")
         if json.loads((tested / "test.json").read_bytes()) != installed["planned_test"]:
             raise ValueError("installed planned test CLI differs from API")
         if (chosen / "selection.json").read_bytes() != original:
             raise ValueError("planned test changed its input record")
+        if (chosen / "selection-bundle.json").read_bytes() != original_bundle:
+            raise ValueError("planned test changed its input environment bundle")
+        chosen_context = json.loads(original_bundle)["context"]["selection"]
+        tested_context = json.loads((tested / "environment.json").read_bytes())["execution"]
+        if tested_context["selection"] != chosen_context or tested_context["test"]["state"] != "recorded":
+            raise ValueError("installed test did not preserve the original selection environment")
+        redrawn = base / "old record redrawn"
+        run([str(python), "-I", "-m", "event_control_lab.planned_study", "render",
+             str(chosen / "selection.json"), "--out", str(redrawn)], base, logs, "installed-planned-render")
+        redraw_context = json.loads((redrawn / "environment.json").read_bytes())
+        if redraw_context["execution"]["selection"] != {"state": "not_recorded", "runtime": None}:
+            raise ValueError("installed redraw filled an unrecorded old execution environment")
+        if (redrawn / "selection.json").read_bytes() != original:
+            raise ValueError("installed redraw changed the raw selection result")
         extracted = extract_source(archive, base / "fresh source")
         for path in ("README.md", "README.en.md", "BRANDING.md", "START_HERE.md", "quickstart.py", "docs/grid-check.md",
                      "examples/grid-check.json", "examples/own_model_case.py", "docs/own-model.md", "scripts/check_distribution.py", "docs/planned-study.md",
                      "examples/planned-study.json", "event_control_lab/planned_study.py",
-                     "event_control_lab/planned_report.py", "event_control_lab/planned_cli.py"):
+                     "event_control_lab/planned_report.py", "event_control_lab/planned_cli.py",
+                     "event_control_lab/planned_context.py"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -264,6 +303,7 @@ def main():
             "both_command_entry_points": True, "installed_grid_cli": True,
             "installed_controller_cli_and_result_parity": True,
             "installed_planned_selection_and_test_match_source": True,
+            "installed_planned_context_bundle_and_render": True,
             "installed_custom_model_compare_study_learning_match_source": True,
             "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],

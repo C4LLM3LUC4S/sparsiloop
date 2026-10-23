@@ -15,6 +15,7 @@ from event_control_lab.engine import Config
 from event_control_lab.planned_report import export_selection, export_test
 from event_control_lab.planned_study import PlannedSpec, make_trace, select_schedule, test_schedule
 from event_control_lab.web_planned import MAX_REQUEST_BYTES
+from event_control_lab.planned_context import as_bundle, validate_context
 import test_server
 
 
@@ -39,9 +40,21 @@ class WebPlannedTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(content).hexdigest(), response["archive_sha256"])
         with zipfile.ZipFile(io.BytesIO(content)) as archive, tempfile.TemporaryDirectory() as temporary:
             self.assertIsNone(archive.testzip())
-            (export_test if testing else export_selection)(record, Path(temporary) / "direct")
+            manifest = json.loads(archive.read("environment.json"))
+            self.assertEqual(manifest["execution"], response["context"])
+            self.assertEqual(manifest["report_rendering"], response["report_runtime"])
+            validate_context(response["context"], record)
+            (export_test if testing else export_selection)(record, Path(temporary) / "direct", environment=manifest)
             files = {path.name: path.read_bytes() for path in (Path(temporary) / "direct").iterdir()}
-            self.assertEqual(set(archive.namelist()), set(files))
+            extra = {"environment.json", "selection-bundle.json"} | ({"test-bundle.json"} if testing else set())
+            self.assertEqual(set(archive.namelist()), set(files) | extra)
+            saved = as_bundle(json.loads(archive.read("selection-bundle.json")))
+            self.assertEqual(saved["result"], record["selection"] if testing else record)
+            self.assertEqual(saved["context"]["selection"], response["context"]["selection"])
+            if testing:
+                complete = as_bundle(json.loads(archive.read("test-bundle.json")))
+                self.assertEqual(complete["result"], record)
+                self.assertEqual(complete["context"], response["context"])
             for name, data in files.items():
                 self.assertEqual(archive.read(name), data, name)
                 self.assertEqual(name, Path(name).name)
@@ -66,7 +79,7 @@ class WebPlannedTests(unittest.TestCase):
         before = deepcopy(chosen)
         seen.clear()
         with patch("event_control_lab.planned_study.make_trace", side_effect=trace), patch(
-                "event_control_lab.web_planned.select_schedule", side_effect=AssertionError("no reselection")):
+                "event_control_lab.planned_context.select_schedule", side_effect=AssertionError("no reselection")):
             response = self.post("/api/planned/test", {"selection": chosen})
         self.assertEqual(seen, list(spec.test_seeds))
         self.assertEqual(chosen, before)
@@ -78,14 +91,30 @@ class WebPlannedTests(unittest.TestCase):
                            absolute_thresholds=tuple(x/10 for x in range(8)),
                            relative_thresholds=tuple(x/10 for x in range(8)),
                            selection_seeds=(1, 2, 3, 4, 5), test_seeds=(6, 7, 8, 9, 10), rmse_limit=100)
-        choice = self.post("/api/planned/select", {"spec": asdict(spec)})["record"]
-        body = json.dumps({"selection": choice})
+        response = self.post("/api/planned/select", {"spec": asdict(spec)})
+        choice = response["record"]
+        bundle = {"format": "sparsiloop-planned-bundle-v1", "result": choice, "context": response["context"]}
+        body = json.dumps({"selection": bundle})
         self.assertGreater(len(body), 2*1024*1024)
         self.assertLess(len(body), MAX_REQUEST_BYTES)
-        response = self.post("/api/planned/test", {"selection": choice})
+        response = self.post("/api/planned/test", {"selection": bundle})
         self.assertEqual(response["record"]["selection"], choice)
         self.assertEqual(len(choice["selection_runs"]), 85)
         self.archive_matches(response, response["record"], testing=True)
+
+    def test_saved_environment_survives_http_reuse_and_invalid_context_does_not_test(self):
+        response = self.post("/api/planned/select", {"spec": asdict(self.spec())})
+        bundle = {"format": "sparsiloop-planned-bundle-v1", "result": response["record"], "context": response["context"]}
+        original = deepcopy(bundle)
+        tested = self.post("/api/planned/test", {"selection": bundle})
+        self.assertEqual(tested["context"]["selection"], response["context"]["selection"])
+        self.assertEqual(tested["context"]["test"]["state"], "recorded")
+        self.assertEqual(bundle, original)
+        bundle["context"]["selection"]["runtime"]["python_version"] = "0.0"
+        with patch("event_control_lab.web_planned.test_with_context", side_effect=AssertionError("invalid context must not test")):
+            status, _, payload = self.request("POST", "/api/planned/test", json.dumps({"selection": bundle}))
+        self.assertEqual(status, 400)
+        self.assertIn("环境记录", json.loads(payload)["error"])
 
     def test_failed_runs_and_unknown_scores_remain_and_no_choice_does_not_test(self):
         spec = replace(self.spec(), config=Config(duration=0.2, budget=0, heartbeat=0.2,
@@ -108,7 +137,7 @@ class WebPlannedTests(unittest.TestCase):
         values = [[], {"spec": asdict(spec), "python": "print(1)"},
                   {"spec": asdict(replace(spec, config=replace(spec.config, dt=0.01)))},
                   {"spec": asdict(oversized)}, {"spec": {"selection_seeds": [1], "test_seeds": [1]}}]
-        with patch("event_control_lab.web_planned.select_schedule", side_effect=AssertionError("reject before running")):
+        with patch("event_control_lab.web_planned.select_with_context", side_effect=AssertionError("reject before running")):
             for value in values:
                 status, _, payload = self.request("POST", "/api/planned/select", json.dumps(value))
                 self.assertEqual(status, 400, payload[:300])
@@ -119,7 +148,7 @@ class WebPlannedTests(unittest.TestCase):
         damaged["spec"]["test_seeds"] = [9001]
         values = [{"selection": choice, "seeds": [9001]}, {"selection": choice, "config": {}},
                   {"selection": damaged}, {"selection": {}}, {"selection": None}]
-        with patch("event_control_lab.web_planned.test_schedule", side_effect=AssertionError("reject before testing")):
+        with patch("event_control_lab.web_planned.test_with_context", side_effect=AssertionError("reject before testing")):
             for value in values:
                 status, _, payload = self.request("POST", "/api/planned/test", json.dumps(value))
                 self.assertEqual(status, 400, payload[:300])
