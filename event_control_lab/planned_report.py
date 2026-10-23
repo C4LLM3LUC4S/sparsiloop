@@ -42,8 +42,10 @@ def page(title, body):
 def scope(record):
     spec = record["spec"]
     config = spec["config"]
+    error_name = "首个状态分量的误差" if record.get("model") else "位置误差"
+    deviation = "第一个状态分量的偏差" if record.get("model") else "位置偏差"
     return (f"每次计划模拟 {config['duration']} 秒，每步 {config['dt']} 秒，最多尝试发送 {config['budget']} 条消息。"
-            f"位置误差要求：每个声明种子的完整时段 RMSE 都不高于 {spec['rmse_limit']}。RMSE 概括整个时段的位置偏差，这个要求不是瞬时最大偏差的限制。"
+            f"{error_name}要求：每个声明种子的完整时段 RMSE 都不高于 {spec['rmse_limit']}。RMSE 概括整个时段的{deviation}，这个要求不是瞬时最大偏差的限制。"
             "周期与事件方案使用相同发送上限，实际消息数仍分别记录；不按事件结果改周期预算。")
 
 
@@ -61,6 +63,21 @@ def experiment_conditions(record, *, testing=False):
     model = "一阶标量对象（scalar）" if scalar else "位置—速度对象（double_integrator）"
     initial = (f"从 x={shown(config.initial_position)} 开始，让 x 回到 0。" if scalar else
                f"从位置 p={shown(config.initial_position)}、速度 v={shown(config.initial_velocity)} 开始，让两者回到 0；误差要求只考察位置。")
+    custom = record.get("model")
+    model_extra = ""
+    provenance = "这是数学示例，没有实物标定；状态和控制量不默认对应米、牛顿等实际单位。"
+    if custom:
+        model = "本地模型：" + custom["name"]
+        unit = custom["state_units"][0]
+        unit_label = {"normalized_displacement": "归一化位移（没有换算成米）",
+                      "normalized_output": "归一化输出（没有换算成实际量纲）"}.get(unit, unit)
+        initial = (f"初始值是 {shown(config.initial_position)}，目标是 0。" if scalar else
+                   f"初始位置是 {shown(config.initial_position)}，速度是 {shown(config.initial_velocity)}，目标都为 0。")
+        initial += f"误差要求只看第一个状态分量；声明单位：{unit_label}。"
+        provenance = "模型、参数、单位和来源由你提供，工具没有做独立核验。请保留原来的本地代码；JSON 不包含可执行模型。"
+        model_extra = ('<details><summary>核对模型参数、单位和来源</summary><pre>'
+                       + html.escape(json.dumps(custom, ensure_ascii=False, indent=2))
+                       + '</pre></details><p><a href="model.json" download>保存模型声明（JSON）</a></p>')
     if testing:
         seeds = (f"这一步使用的测试编号：{', '.join(map(str, spec['test_seeds']))}。"
                  if record["selected_id"] is not None else
@@ -99,10 +116,14 @@ def experiment_conditions(record, *, testing=False):
         ["误差与提前停止", f"每个完整运行的位置 RMSE 不高于 {shown(spec['rmse_limit'])}；它综合整个时段，不是瞬时最大偏差。状态向量长度超过 {shown(config.state_limit)} 或出现非有限数时提前停止；失败的完整时段指标不能当成 0。"],
         ["配置里哪些值会被替换", f"基准 seed={config.seed} 只保留在配置里，不作为本轮运行编号；实际使用上方声明的列表。绝对候选替换 threshold，相对候选替换 relative_threshold；周期不使用这两种门槛。" + ("一阶对象的 initial_velocity 和 kd 只保留在配置中，不参与运行。" if scalar else "")],
     ]
+    if custom:
+        fields = [[name, value.replace("一阶反馈", "标量反馈").replace("一阶对象", "标量对象")
+                   .replace("位置 RMSE", "首个状态分量的 RMSE")] for name, value in fields]
+        fields[0] = ["本地对象与单位", f"由原本地模型函数推进状态；参数与来源见模型声明。状态单位：{custom['state_units']}；输入单位：{custom['input_unit']}。"]
     return ('<section id="experiment-conditions"><h2>这次模拟的是什么？</h2>'
             f'<p>{html.escape(model + "。" + initial)}</p>'
-            '<p>这是数学示例，没有实物标定；状态和控制量不默认对应米、牛顿等实际单位。</p>'
-            f'<p>{html.escape(seeds)}随机种子就是这组随机输入的编号。</p>'
+            f'<p>{html.escape(provenance)}</p>' + model_extra
+            + f'<p>{html.escape(seeds)}随机种子就是这组随机输入的编号。</p>'
             '<details><summary>核对控制、网络和发送规则</summary>'
             + '<div class="conditions">' + table(["条件", "当前记录"], fields) + '</div>'
             + '</details><details><summary>查看原样保存的完整方案</summary>'
@@ -169,6 +190,8 @@ def export_selection(record, destination, input_hash=None, *, environment=None):
     folder = Path(destination)
     folder.mkdir(parents=True, exist_ok=False)
     write_json(folder / "selection.json", record)
+    if record.get("model"):
+        write_json(folder / "model.json", record["model"])
     write_json(folder / "input-info.json", {"input_sha256": input_hash, "phase": "selection_only"})
     records_csv(folder, record["selection_runs"])
     summaries = record["selection_summaries"]
@@ -184,7 +207,11 @@ def export_selection(record, destination, input_hash=None, *, environment=None):
     body += "<section><h2>所有候选都在这里</h2>" + table(["候选", "完整运行", "各次 RMSE 的最大值", "平均 RMSE", "平均尝试发送", "选择情况"], rows) + "<p>提前失败的尝试数只统计停下之前发了多少条，不能当作完成整个任务的通信开销。</p></section>"
     body += '<section><h2>下一步怎么做？</h2>'
     if chosen:
-        body += '<p>保留 selection.json，用 test 命令载入它；测试阶段不会重新选门槛，也不会改变事先声明的发送上限。</p><pre>python -m event_control_lab.planned_study test PATH/selection.json --out runs/planned-test</pre><p>把 PATH 换成这份报告所在的目录。</p>'
+        if record.get("model"):
+            saved_name = "selection-bundle.json" if environment is not None else "selection.json"
+            body += f'<p>保存 {saved_name} 和原来的本地模型代码。下次先重新构建同一模型，再调用 test_with_context(选择记录, plant=模型)。参数、单位或来源不匹配时会拒绝，不会自动换回内置模型。测试只使用原先预留的编号；不重新选门槛或改预算。</p>'
+        else:
+            body += '<p>保留 selection.json，用 test 命令载入它；测试阶段不会重新选门槛，也不会改变事先声明的发送上限。</p><pre>python -m event_control_lab.planned_study test PATH/selection.json --out runs/planned-test</pre><p>把 PATH 换成这份报告所在的目录。</p>'
     else:
         body += '<p>先看哪些候选未跑完、哪些超过了误差要求。保持当前记录，不要从测试结果中临时挑一个门槛。若要改方案，请先记录已看过哪些数据，再用新目录保存。</p>'
     body += '<p><a href="selection.json" download>保存完整选择记录（JSON）</a> · <a href="runs.csv" download>每次运行（CSV）</a> · <a href="trajectories.csv" download>全部轨迹（CSV）</a></p></section>'
@@ -196,6 +223,8 @@ def export_test(result, destination, input_hash=None, *, environment=None):
     folder = Path(destination)
     folder.mkdir(parents=True, exist_ok=False)
     write_json(folder / "test.json", result)
+    if result["selection"].get("model"):
+        write_json(folder / "model.json", result["selection"]["model"])
     write_json(folder / "input-info.json", {"input_sha256": input_hash, "phase": "declared_test_only"})
     records_csv(folder, result["test_runs"])
     messages = {"met_declared_tests": "这次声明的测试都完整结束，所选方案也都满足误差要求。",
@@ -211,6 +240,7 @@ def export_test(result, destination, input_hash=None, *, environment=None):
         role = "所选方案 / 周期对照（同一方案）" if len(row["roles"]) == 2 else ("所选方案" if "selected" in row["roles"] else "周期对照")
         status = {"complete": "完整结束", "state_limit": "超过设置的状态上限", "controller_error": "控制器出错", "plant_error": "模型出错"}.get(run["status"], run["status"])
         rows.append([role, names[row["candidate_id"]], row["seed"], status, run["metrics"]["position_rmse"], run["packets"]["attempted"], run["packets"]["delivered"], run["error"] or "—"])
-    body += "<section><h2>每次测试的误差和消息数</h2>" + table(["用途", "方案", "种子", "运行情况", "位置 RMSE", "尝试发送", "到达", "原因"], rows) + "</section>"
+    metric_name = "首个状态 RMSE" if result["selection"].get("model") else "位置 RMSE"
+    body += "<section><h2>每次测试的误差和消息数</h2>" + table(["用途", "方案", "种子", "运行情况", metric_name, "尝试发送", "到达", "原因"], rows) + "</section>"
     body += '<section><h2>接下来怎么判断？</h2><p>先核对有没有提前停止，再看每个种子是否达标，以及实际发了多少条消息。周期对照用于描述相同上限下的取舍；测试里更好的另一个结果不会替换所选方案。若你据此继续调参，这组测试就成为开发数据，后续需要另定方案。</p><p><a href="test.json" download>完整方案、选择记录和测试结果（JSON）</a> · <a href="runs.csv" download>每次测试（CSV）</a> · <a href="trajectories.csv" download>全部测试轨迹（CSV）</a></p></section>'
     (folder / "report.html").write_text(page("复核已经选定的发送方案", body + environment_section(environment) + footer()), encoding="utf-8")

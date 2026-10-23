@@ -4,6 +4,8 @@ Need to choose a communication threshold before inspecting test outcomes? Open t
 
 Save a selection/test bundle to carry minimal execution-environment information to another machine. Reports separate selection, testing and report rendering; missing facts in old records stay unknown. The `render` command redraws saved results without rerunning seeds. See the [environment and redraw guide](docs/planned-study.md#换一台电脑时先看环境记录).
 
+Have your own model? The [local-model planned workflow](docs/planned-models.md) reuses the same explicit adapter, saves its parameters, units and declared source, and requires a matching model for later testing. The browser does not upload or execute model code.
+
 **What happens to control error when you send fewer sensor messages?**
 
 Try it on your computer: set a message limit, delay and loss probability, then compare regular sending with sending when measurements change. See where errors grow, check which messages arrived and save the results for analysis. The teaching models give you a starting point; a Python adapter lets you bring your own model.

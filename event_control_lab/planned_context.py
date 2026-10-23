@@ -10,6 +10,7 @@ import sys
 
 from . import __version__
 from .planned_study import FORMAT as SELECTION_FORMAT, digest, select_schedule, test_schedule
+from .planned_models import FORMAT as MODEL_SELECTION_FORMAT, TEST_FORMAT as MODEL_TEST_FORMAT
 
 
 BUNDLE_FORMAT = "sparsiloop-planned-bundle-v1"
@@ -30,9 +31,9 @@ def runtime_info():
 
 def phase_of(result):
     if isinstance(result, dict):
-        if result.get("format") == SELECTION_FORMAT:
+        if result.get("format") in (SELECTION_FORMAT, MODEL_SELECTION_FORMAT):
             return "selection"
-        if result.get("analysis") == "planned-budget-test-v1":
+        if result.get("analysis") in ("planned-budget-test-v1", MODEL_TEST_FORMAT):
             return "test"
     raise ValueError("请选择完整的选择记录、测试记录或带环境的记录包；实验方案不能代替结果。")
 
@@ -111,19 +112,29 @@ def as_bundle(value):
     return {"format": BUNDLE_FORMAT, "result": value, "context": context_for(value)}
 
 
-def select_with_context(spec):
+def select_with_context(spec, *, plant=None):
     runtime = runtime_info()
-    result = select_schedule(spec)
+    if plant is None:
+        result = select_schedule(spec)
+    else:
+        from .planned_models import select_model_schedule
+        result = select_model_schedule(spec, plant=plant)
     return {"format": BUNDLE_FORMAT, "result": result,
             "context": context_for(result, selection=entry("recorded", runtime))}
 
 
-def test_with_context(value):
+def test_with_context(value, *, plant=None):
     saved = as_bundle(value)
     if saved["context"]["phase"] != "selection":
         raise ValueError("复核需要 selection-bundle.json 或 selection.json，测试记录不能代替选择。")
     runtime = runtime_info()
-    result = test_schedule(saved["result"])
+    if saved["result"].get("format") == MODEL_SELECTION_FORMAT:
+        from .planned_models import test_model_schedule
+        result = test_model_schedule(saved["result"], plant=plant)
+    else:
+        if plant is not None:
+            raise ValueError("这份记录使用内置模型，不能在复核时换成自己的模型；请另存一份新选择方案。")
+        result = test_schedule(saved["result"])
     return {"format": BUNDLE_FORMAT, "result": result,
             "context": context_for(result, selection=saved["context"]["selection"],
                                    testing=entry("recorded", runtime) if result["test_runs"] else entry("not_run"))}
