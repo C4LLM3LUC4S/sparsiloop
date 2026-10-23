@@ -53,6 +53,7 @@
   }
  }
  function usePolicy(value,message) {
+  if(value?.format==='sparsiloop-policy-history-v2')throw Error('这份跨流程历史请用本地命令 python -m event_control_lab.policy_journal select 继续；网页暂不接收新格式，请保留完整原文件');
   if(!value || !['sparsiloop-frozen-policy-v1','sparsiloop-planned-policy-history-v1'].includes(value.format))
    throw Error('请使用完整 policy-checkpoint.json 或 policy-history.json，只有 Q 表不够');
   if(new TextEncoder().encode(JSON.stringify(value)).length>2*1024*1024)

@@ -1,24 +1,27 @@
 # SparsiLoop · 事件触发控制实验室
 
-想在消息上限内先选一个发送门槛，再换一组条件复核？打开本地网页，点击“先选发送方案，再复核”，就能配置、保存选择并按原计划测试，也可以使用[命令行流程](docs/planned-study.md)。所有候选和失败保留，测试成绩不会反过来替你改选；网页支持内置对象的固定反馈，也可复用完整标量 Q 策略。
-
-想换台电脑复核，或以后只重新生成报告？保存带环境的选择/测试记录包即可。报告会分开说明选择、复核和出报告时的环境，旧记录缺失的信息仍保留未知；具体操作见[运行环境与重绘](docs/planned-study.md#换一台电脑时先看环境记录)。
-
-已有自己的模型？[本地选择与复核](docs/planned-models.md)可以复用同一份模型，保存参数、单位和来源；下次显式传回原模型再测。网页仍不上传或执行模型代码。
-
-已经训练好了强化学习策略？[固定原策略再选发送方案](docs/planned-policy.md)，不用重新训练。网页里可以直接复用上方保存的策略，或载入完整文件；先声明门槛和条件，再单独测试，完整策略与已用编号随记录保留。
-
 **少发一些传感器消息，会让控制效果变差多少？**
 
-SparsiLoop 帮你在电脑上试一试：调整消息发送次数、延迟和丢包，比较定期发送与按变化发送时的控制误差。你可以查看消息是否到达、误差在哪里变大，再保存完整数据继续分析。适合控制与机器人课程中的实验，也可作为接入自己模型的起点。
+SparsiLoop 帮你在电脑上试一试：调整发送次数、延迟和丢包，比较定期发送与按变化发送时的控制误差。你可以查看消息是否到达、误差在哪里变大，再带走完整数据继续分析。适合控制与机器人课程中的实验，也可作为接入自己模型的起点。
 
-A local lab to compare event-triggered and periodic control under communication budgets, delay and packet loss. Inspect every message and export reproducible trajectories and metrics.
+A local lab to compare event-triggered and periodic control under communication budgets, delay and packet loss. Inspect each message and export reproducible results.
 
-[English guide](README.en.md) · [名称与简介](BRANDING.md)
+[English guide](README.en.md) · [第一次使用](START_HERE.md) · [名称与简介](BRANDING.md)
 
-**0.0.1，公开开发原型，尚未发布版本资产。** 目标是让学生、教师和控制研究者直观看见通信次数、信息年龄与控制误差的关系，并能带走完整实验数据。SparsiLoop 是公开项目名称，Python 模块仍为 `event_control_lab`。
+**0.0.1，公开开发原型，尚未发布版本资产。** 目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
 
-目前包括两个归一化教学对象、一条传感器上行链路和三种发送策略。固定反馈控制器只读取已到达的测量；网页与命令行使用同一个 Python 仿真核心。Python 3.10+，核心和网页服务均无需第三方依赖、API 密钥、账户或 GPU。
+## 从你要做的事开始
+
+| 想做什么 | 从哪里开始 |
+| --- | --- |
+| 先看看少发消息有什么影响 | 运行 `python quickstart.py`，在网页调整条件后比较误差与实际消息数 |
+| 在消息上限内选一个发送门槛，再换条件复核 | [选择与复核](docs/planned-study.md)：网页或本地命令保存全部候选与失败，测试结果不会改选 |
+| 用训练好的 Q 策略选发送方式 | [冻结策略复用](docs/planned-policy.md)：网页可复用前一结果，也可载入完整文件；不重新训练 |
+| 在单独评测与下一轮计划之间接着走 | [完整历史接续](docs/policy-history.md)：本地 API/CLI 保留起点与后续阶段；新 v2 格式尚未接入网页 |
+| 换成自己的对象模型 | [本地模型接入](docs/planned-models.md)：显式保留参数、单位和来源；网页不上传或执行模型代码 |
+| 换电脑复核，或只重绘旧报告 | [环境记录与重绘](docs/planned-study.md#换一台电脑时先看环境记录)：缺失的旧环境仍未知，不再运行的步骤不会冒充新测试 |
+
+SparsiLoop 是公开项目名称，Python 模块名仍为 `event_control_lab`。下面从最短的本地使用路径开始。
 
 ## 本地打开
 
