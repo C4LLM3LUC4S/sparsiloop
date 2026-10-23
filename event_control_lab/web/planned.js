@@ -88,13 +88,15 @@
   section.append(details);return section;
  }
  function source(record,message) {
-  if(!record){loaded=null;reading=false;document.querySelector('#planned-record-source').textContent=message;return;}
+  const status=document.querySelector('#planned-test-status');status.className='';
+  document.querySelector('#planned-test-error').hidden=true;
+  if(!record){loaded=null;reading=false;document.querySelector('#planned-record-source').textContent=message;status.textContent=message;return;}
   loaded=record;reading=false;const raw=rawRecord(record), recordedContext=record?.format===workflowFormat?record.data?.context:record?.context;
   const sha=typeof raw?.record_sha256==="string"?raw.record_sha256.slice(0,12):"待校验";
   const environment=recordedContext?.selection?.state==="recorded" ?
    "带有选择时的环境记录。" : "原文件没有选择时的环境，复核后也会保留未知。";
   document.querySelector("#planned-record-source").textContent=`${message} ${environment} 记录：${sha}。复核时会检查完整内容、版本和选择规则。`;
-  if(previous.test){const status=document.querySelector("#planned-test-status");status.className="";status.textContent="当前载入的选择记录已更新，下方仍是上次复核结果；请核对结果自身的条件和记录编号。";}
+  status.textContent=previous.test?'当前载入的选择记录已更新，下方仍是上次复核结果；请核对结果自身的条件和记录编号。':'选择记录已载入，尚未运行；点击按原计划复核时，还会检查完整内容。';
  }
  function runtimeView(result) {
   const details=node("details");details.append(node("summary","查看选择、复核和生成报告时的环境"));

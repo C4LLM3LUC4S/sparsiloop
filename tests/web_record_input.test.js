@@ -50,6 +50,9 @@ test('wrong file purpose clears active input and a later valid file can recover'
  const page=setup();await page.choose(file('old'));
  await page.choose(file('test',JSON.stringify({format:'sparsiloop-policy-workflow-v1',phase:'test'})));
  await page.submit();assert.equal(page.posts.length,0);
- await page.choose(file('recovered'));await page.submit();
+ await page.choose(file('recovered'));
+ assert.notEqual(page.get('#planned-test-status').className,'error');
+ assert.equal(page.get('#planned-test-error').hidden,true);
+ await page.submit();
  assert.equal(page.posts.length,1);assert.equal(page.posts[0].selection.record_sha256,'recovered');
 });
