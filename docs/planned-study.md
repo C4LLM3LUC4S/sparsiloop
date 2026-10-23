@@ -109,6 +109,8 @@ export_bundle(tested, "runs/api-test")
 
 重复执行同一个测试文件，是重跑同一份声明，不是增加独立样本。工具无法证明你没有在看到测试结果后重做选择；摘要也不认证来源、预注册、稳定性、硬件效果或普遍优越。公开示例是开发者已看过的流程演示。
 
+已有训练好的策略时，另看[冻结策略选择与复核](planned-policy.md)。它保留训练时钟、Q 表和分阶段已用编号，选择与测试都不再训练；本文默认仍使用固定线性反馈。
+
 ## English
 
 Declare candidate thresholds, a common packet cap, an RMSE requirement and disjoint selection/test seed lists. `select` runs only selection seeds, saves every candidate and chooses by a fixed rule: all runs complete and satisfy the RMSE limit, then minimum mean attempts, mean RMSE and declared order. The separate `test` command loads that record and runs only the declared tests and a fixed-cap periodic reference, without reselection. This workflow uses built-in plants and fixed linear feedback, not controller training. It retains failures and raw trajectories. Seed separation and checksums do not certify independent data, preregistration, provenance or stability.

@@ -17,6 +17,7 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     selection = commands.add_parser("select", help="只用选择种子，保存方案和完整记录")
     selection.add_argument("--spec", required=True)
+    selection.add_argument("--policy-checkpoint", help="可选：复用完整冻结策略或 policy-history.json；不再训练")
     selection.add_argument("--out", required=True)
     testing = commands.add_parser("test", help="载入既定方案，只运行预先声明的测试种子")
     testing.add_argument("record", help="选择阶段的 selection.json")
@@ -31,7 +32,10 @@ def main(argv=None):
             raise ValueError("输出目录已存在，请换一个新目录；旧结果不会覆盖")
         value, input_hash = read_json(args.spec if args.command == "select" else args.record)
         if args.command == "select":
-            bundle = select_with_context(PlannedSpec.from_dict(value))
+            policy_checkpoint = read_json(args.policy_checkpoint)[0] if args.policy_checkpoint else None
+            if args.policy_checkpoint and not isinstance(policy_checkpoint, dict):
+                raise ValueError("策略文件需要是完整 checkpoint 或历史对象，空值不能代替策略，也不会改用线性反馈。")
+            bundle = select_with_context(PlannedSpec.from_dict(value), policy_checkpoint=policy_checkpoint)
             result = bundle["result"]
             choice = next((row for row in result["selection_summaries"] if row["id"] == result["selected_id"]), None)
             print("已选定：" + label(choice) + "。测试种子还没有运行。" if choice else
@@ -47,6 +51,8 @@ def main(argv=None):
             bundle = as_bundle(value)
             print("只重新生成报告，没有运行选择或测试；缺失的原运行环境仍是未知。")
         export_bundle(bundle, output, input_hash)
+        if "policy_after" in bundle["result"]:
+            print("这次没有训练策略。另做新计划时，请载入 policy-history.json，保留已经用过的编号。")
         if bundle["context"]["selection"]["state"] == "not_recorded":
             print("原选择记录未保存环境，不能用当前环境补过去。")
         print("下次复核可载入 selection-bundle.json，一并保留选择时的环境。")

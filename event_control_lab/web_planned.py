@@ -12,6 +12,7 @@ import zipfile
 from .engine import Config
 from .planned_study import PlannedSpec, load_selection
 from .planned_models import FORMAT as MODEL_SELECTION_FORMAT
+from .planned_policy import FORMAT as POLICY_SELECTION_FORMAT
 from .planned_context import as_bundle, export_bundle, selection_bundle, select_with_context, test_with_context
 
 
@@ -70,6 +71,8 @@ def test_from_web(value):
         raise ValueError("请载入选择记录，不能用测试记录代替。")
     if saved["result"].get("format") == MODEL_SELECTION_FORMAT:
         raise ValueError("这份记录使用本地 Python 模型，请回到原本地程序传入 plant=模型 后复核；网页不执行模型代码。")
+    if saved["result"].get("format") == POLICY_SELECTION_FORMAT:
+        raise ValueError("这份记录复用了冻结策略，请用本地 test 命令载入同一份选择记录；网页暂不运行这种计划。")
     spec = load_selection(saved["result"])
     web_spec(spec)
     return pack(test_with_context(saved))

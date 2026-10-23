@@ -8,6 +8,9 @@
  const count=v=>v===null || v===undefined ? "无法计算" : new Intl.NumberFormat("zh-CN",{maximumFractionDigits:2}).format(v);
  const candidate=r=>r.policy==="periodic" ? "周期发送" : `${r.policy==="absolute"?"绝对门槛":"相对系数"} ${r.threshold}`;
  const statuses={complete:"完整结束",state_limit:"状态超限，提前停止",controller_error:"控制器出错",plant_error:"模型出错"};
+ const verdict=(run,limit)=>run.status!=="complete" || typeof run.metrics.position_rmse!=="number" ||
+  !Number.isFinite(run.metrics.position_rmse) || run.metrics.position_rmse<0 ? "无法判断" :
+  run.metrics.position_rmse<=limit ? "达标" : "超出要求";
  function node(tag,text,className){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n;}
  function list(raw,name,limit,integer=false,empty=false) {
   if(!raw.trim() && empty)return [];
@@ -91,9 +94,10 @@
     did_not_meet_declared_tests:"所选方案没有通过这次全部要求，仍保留原来的选择，没有改选。",
     not_run_no_eligible_choice:"选择阶段没有合格候选，这次没有运行任何测试种子。"};
    target.append(node("h3",messages[record.status]),conditions(choice,true,record.test_runs.length>0));
-   target.append(table(["用途","方案","种子","运行情况","位置 RMSE","尝试发送","到达","原因"],record.test_runs.map(r=>[
+   target.append(table(["用途","方案","种子","运行情况","位置 RMSE","误差是否达标","尝试发送","到达","原因"],record.test_runs.map(r=>[
     r.roles.length===2?"所选方案 / 周期对照":r.roles.includes("selected")?"所选方案":"周期对照",names.get(r.candidate_id),r.seed,
-    statuses[r.run.status]||r.run.status,number(r.run.metrics.position_rmse),r.run.packets.attempted,r.run.packets.delivered,r.run.error||"—"])));
+    statuses[r.run.status]||r.run.status,number(r.run.metrics.position_rmse),verdict(r.run,choice.spec.rmse_limit),r.run.packets.attempted,r.run.packets.delivered,r.run.error||"—"])));
+   if(record.test_runs.length)target.append(node("p","完整结束和误差达标是两件事。表格小数只作简短显示，是否达标按完整数值判断。","scope"));
    target.append(node("p",record.test_runs.length?"先看有没有跑完，再看每个种子是否达标，以及实际用了多少条消息。周期对照沿用相同上限，不会按事件策略的实际流量改预算。若据此调参，这批数据就成了开发数据，后续需要另定方案。":
     "请回到选择结果，先查提前停止或误差超限的原因。保留这份未运行记录；若决定修改方案，请记下已经看过的种子，再另存一份新方案。","scope"));
   }
