@@ -28,6 +28,10 @@ from event_control_lab import Config, GridSpec, PlantAdapter, StudySpec, compare
 from event_control_lab.server import Handler
 from event_control_lab.controller_lab import ControllerLabSpec, controller_lab
 from dataclasses import replace
+import base64
+import io
+import zipfile
+from event_control_lab.policy import checkpoint, evaluate_policy
 
 config = Config(duration=0.8, budget=4, heartbeat=0.2, measurement_noise=0,
                 process_noise=0, loss_probability=0)
@@ -65,6 +69,24 @@ try:
             assert api_checks[route], route
         finally:
             connection.close()
+    for route, payload, expected_file, expected in (
+        ("/api/controllers", {"method": "ilc", "spec": asdict(learning_spec)},
+         "controllers.json", controller_lab(learning_spec, "ilc")),
+        ("/api/evaluate-policy", {"checkpoint": checkpoint(learning), "seeds": [3001]},
+         "evaluation.json", evaluate_policy(checkpoint(learning), [3001])),
+    ):
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=10)
+        try:
+            connection.request("POST", route, body=json.dumps(payload))
+            response = connection.getresponse()
+            assert response.status == 200, (route, response.status)
+            result = json.loads(response.read())
+            with zipfile.ZipFile(io.BytesIO(base64.b64decode(result["archive_base64"]))) as archive:
+                assert archive.testzip() is None
+                api_checks[route] = json.loads(archive.read(expected_file)) == json.loads(json.dumps(expected))
+                assert api_checks[route], route
+        finally:
+            connection.close()
 finally:
     server.shutdown()
     server.server_close()
@@ -80,7 +102,7 @@ print(json.dumps({
     "version": event_control_lab.__version__,
     "runtime_dependencies": data.get_all("Requires-Dist", []) if data else None,
     "static_sha256": {name: hashlib.sha256(resources.files("event_control_lab.web").joinpath(name).read_bytes()).hexdigest()
-                      for name in ("index.html", "style.css", "app.js", "study.js")},
+                      for name in ("index.html", "style.css", "app.js", "study.js", "controllers.js")},
     "compare": single, "study": scanned, "grid_check": grid_check(GridSpec(config)),
     "controller_lab": learning,
     "custom_model": {"compare": custom_compare, "study": custom_study, "controller_lab": custom_learning},

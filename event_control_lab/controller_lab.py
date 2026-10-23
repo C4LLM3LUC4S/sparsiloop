@@ -289,10 +289,8 @@ section{background:white;border:1px solid #ccdce4;border-radius:12px;padding:20p
     (destination / "report.html").write_text(page, encoding="utf-8")
 
 
-def export_policy_evaluation(result, destination):
-    from .policy import checkpoint_digest
-
-    view = {"cases": {"rl": {"training": [], "frozen_table": result["checkpoint"]["table"],
+def evaluation_view(result):
+    return {"cases": {"rl": {"training": [], "frozen_table": result["checkpoint"]["table"],
                               "evaluation": [{"seed": case["seed"], "trained": case["policy"],
                                               "linear_feedback": case["linear_feedback"]}
                                              for case in result["cases"]]}},
@@ -300,7 +298,12 @@ def export_policy_evaluation(result, destination):
             "evaluation_seeds": result["evaluation_seeds"],
             "frozen_before_sha256": result["frozen_before_sha256"],
             "frozen_after_sha256": result["frozen_after_sha256"]}
-    export_controller_lab(view, destination)
+
+
+def export_policy_evaluation(result, destination):
+    from .policy import checkpoint_digest
+
+    export_controller_lab(evaluation_view(result), destination)
     folder = Path(destination)
     saved = dict(result["checkpoint"])
     saved["previous_evaluation_seeds"] = saved["previous_evaluation_seeds"] + result["evaluation_seeds"]

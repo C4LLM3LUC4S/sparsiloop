@@ -30,6 +30,8 @@ python -m event_control_lab serve --port 8788
 
 ## 经典控制与学习案例
 
+在网页点击“试试 MFAC、ILC 和强化学习”，就能选择方法、调整参数、运行并下载完整离线报告。也能选择保存的策略，用新种子继续测试；见[网页实验说明](docs/web-recipes.md)。需要更多参数或更大规模时，使用下面的命令。
+
 ```powershell
 python -m event_control_lab controller-lab --out runs/controllers
 ```

@@ -26,6 +26,8 @@ Open the displayed loopback URL. Set a maximum packet budget, delay and loss pro
 
 Run the [MFAC, ILC and reinforcement-learning recipes](docs/classic-controllers.md):
 
+You can also configure them in the [web lab](docs/web-recipes.md), download a complete offline report ZIP, or load a saved checkpoint for testing on new seeds. Training and test results stay separate. The CLI below supports a wider workload and parameter range.
+
 ```sh
 python -m event_control_lab controller-lab --out runs/controllers
 ```
