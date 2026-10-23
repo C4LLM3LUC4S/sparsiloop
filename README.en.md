@@ -1,5 +1,7 @@
 # SparsiLoop · Event-triggered control lab
 
+Need to choose a communication threshold before inspecting test outcomes? The [planned selection workflow](docs/planned-study.md) saves a fixed rule and every candidate result, then evaluates the chosen schedule on declared test seeds in a separate command. It uses built-in plants and fixed feedback; failures remain visible and test outcomes never trigger reselection.
+
 **What happens to control error when you send fewer sensor messages?**
 
 Try it on your computer: set a message limit, delay and loss probability, then compare regular sending with sending when measurements change. See where errors grow, check which messages arrived and save the results for analysis. The teaching models give you a starting point; a Python adapter lets you bring your own model.
