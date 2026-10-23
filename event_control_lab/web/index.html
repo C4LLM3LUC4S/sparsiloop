@@ -179,9 +179,9 @@
     <details id="planned-selection-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
     <div id="planned-selection-output" hidden></div>
     <h3>2. 按保存好的条件复核</h3>
-    <p class="scope">刚才的完整选择记录会留在页面里，也可以载入保存过的 selection.json。复核只按这份记录运行，不会用上方刚改过的参数替换它。刷新网页前，请下载并保留记录。</p>
+    <p class="scope">刚才的完整选择记录会留在页面里。留到下次使用，推荐保存 selection-bundle.json，把选择时的运行环境也带上；原始 selection.json 仍可用，但缺失的环境会保留未知。复核不会用上方刚改过的参数替换保存条件。刷新网页前，请下载并保留记录。</p>
     <form id="planned-test-settings" class="recipe-form">
-      <label>或载入之前保存的选择记录<input name="selection" type="file" accept=".json,application/json"></label>
+      <label>或载入选择记录（推荐带环境的记录包）<input name="selection" type="file" accept=".json,application/json"></label>
       <button type="button" id="planned-use-latest">使用刚才生成的选择记录</button>
       <button type="submit">按原计划复核，不重新选方案</button>
     </form>

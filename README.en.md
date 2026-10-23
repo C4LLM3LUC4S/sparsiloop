@@ -2,6 +2,8 @@
 
 Need to choose a communication threshold before inspecting test outcomes? Open the local web page, follow “先选发送方案，再复核”, and configure, save and test a choice without switching to a terminal. The [planned selection workflow](docs/planned-study.md) also supports separate CLI commands. Both paths save every candidate and failure, then test only the declared seeds without reselection. The web path uses built-in plants, fixed feedback, a 20 ms step, 0.2–8 seconds, at most 20,000 potential intervals and 8 MiB requests.
 
+Save a selection/test bundle to carry minimal execution-environment information to another machine. Reports separate selection, testing and report rendering; missing facts in old records stay unknown. The `render` command redraws saved results without rerunning seeds. See the [environment and redraw guide](docs/planned-study.md#换一台电脑时先看环境记录).
+
 **What happens to control error when you send fewer sensor messages?**
 
 Try it on your computer: set a message limit, delay and loss probability, then compare regular sending with sending when measurements change. See where errors grow, check which messages arrived and save the results for analysis. The teaching models give you a starting point; a Python adapter lets you bring your own model.

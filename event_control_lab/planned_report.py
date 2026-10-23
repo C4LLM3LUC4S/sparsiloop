@@ -142,7 +142,30 @@ def footer():
 <details><summary>English overview</summary><p>A fixed controller selects a schedule using only declared selection seeds and a predeclared rule. A separate command loads the saved selection and evaluates only the declared test seeds with a fixed-cap periodic reference. All failures and raw trajectories remain. This is not a preregistration, independence or stability certificate.</p></details></section>'''
 
 
-def export_selection(record, destination, input_hash=None):
+def environment_section(manifest):
+    if manifest is None:
+        return '<section id="run-environment"><h2>换台电脑复核，先对照哪些信息？</h2><p>这份原始记录没有保存运行环境。仅凭当前电脑，无法反推出当时的 Python 和系统；重新生成报告也不会补成已知。</p></section>'
+    def describe(value):
+        messages = {"not_recorded": "未记录，不能从当前电脑反推。",
+                    "not_requested": "这份记录只做了选择，复核尚未开始。", "not_run": "没有运行测试，也没有测试环境。"}
+        if value["state"] != "recorded":
+            return messages[value["state"]]
+        runtime = value["runtime"]
+        return (f"{runtime['python_implementation']} {runtime['python_version']}；"
+                f"{runtime['os_family']} / {runtime['python_pointer_bits']} 位 Python；SparsiLoop {runtime['sparsiloop_version']}")
+    context = manifest["execution"]
+    body = '<section id="run-environment" class="conditions"><h2>换台电脑复核，先对照哪些信息？</h2><p>运行实验和生成报告是两件事，环境分开记。原记录没写的继续保留未知，不用这台电脑的信息补过去。</p>'
+    body += table(["哪一步", "保存的环境"], [["选择方案时", describe(context["selection"])],
+                 ["按原计划复核时", describe(context["test"])],
+                 ["这次生成报告时", describe({"state": "recorded", "runtime": manifest["report_rendering"]})]])
+    body += '<p>换电脑时可先核对 Python、系统和源码版本。环境相同也不保证浮点逐位一致；这些信息由程序自行记录，摘要只帮助核对文件，不能认证来源。</p><p><a href="selection-bundle.json" download>保存选择记录和运行环境，供下次复核</a> · <a href="environment.json" download>完整环境记录</a></p>'
+    if context["phase"] == "test":
+        body += '<p><a href="test-bundle.json" download>保存完整测试记录和环境，供以后重绘报告</a></p>'
+    body += '<details><summary>查看完整环境字段与记录时间</summary><pre>' + html.escape(json.dumps(manifest, ensure_ascii=False, indent=2)) + '</pre></details></section>'
+    return body
+
+
+def export_selection(record, destination, input_hash=None, *, environment=None):
     folder = Path(destination)
     folder.mkdir(parents=True, exist_ok=False)
     write_json(folder / "selection.json", record)
@@ -166,10 +189,10 @@ def export_selection(record, destination, input_hash=None):
         body += '<p>先看哪些候选未跑完、哪些超过了误差要求。保持当前记录，不要从测试结果中临时挑一个门槛。若要改方案，请先记录已看过哪些数据，再用新目录保存。</p>'
     body += '<p><a href="selection.json" download>保存完整选择记录（JSON）</a> · <a href="runs.csv" download>每次运行（CSV）</a> · <a href="trajectories.csv" download>全部轨迹（CSV）</a></p></section>'
     body += '<details><summary>查看原始失败记录</summary><pre>' + html.escape(json.dumps({"failures": [{"candidate": row["candidate_id"], "seed": row["seed"], "status": row["run"]["status"], "error": row["run"]["error"]} for row in record["selection_runs"] if row["run"]["status"] != "complete"]}, ensure_ascii=False, indent=2)) + "</pre></details>"
-    (folder / "report.html").write_text(page("先选一个发送方案", body + footer()), encoding="utf-8")
+    (folder / "report.html").write_text(page("先选一个发送方案", body + environment_section(environment) + footer()), encoding="utf-8")
 
 
-def export_test(result, destination, input_hash=None):
+def export_test(result, destination, input_hash=None, *, environment=None):
     folder = Path(destination)
     folder.mkdir(parents=True, exist_ok=False)
     write_json(folder / "test.json", result)
@@ -190,4 +213,4 @@ def export_test(result, destination, input_hash=None):
         rows.append([role, names[row["candidate_id"]], row["seed"], status, run["metrics"]["position_rmse"], run["packets"]["attempted"], run["packets"]["delivered"], run["error"] or "—"])
     body += "<section><h2>每次测试的误差和消息数</h2>" + table(["用途", "方案", "种子", "运行情况", "位置 RMSE", "尝试发送", "到达", "原因"], rows) + "</section>"
     body += '<section><h2>接下来怎么判断？</h2><p>先核对有没有提前停止，再看每个种子是否达标，以及实际发了多少条消息。周期对照用于描述相同上限下的取舍；测试里更好的另一个结果不会替换所选方案。若你据此继续调参，这组测试就成为开发数据，后续需要另定方案。</p><p><a href="test.json" download>完整方案、选择记录和测试结果（JSON）</a> · <a href="runs.csv" download>每次测试（CSV）</a> · <a href="trajectories.csv" download>全部测试轨迹（CSV）</a></p></section>'
-    (folder / "report.html").write_text(page("复核已经选定的发送方案", body + footer()), encoding="utf-8")
+    (folder / "report.html").write_text(page("复核已经选定的发送方案", body + environment_section(environment) + footer()), encoding="utf-8")

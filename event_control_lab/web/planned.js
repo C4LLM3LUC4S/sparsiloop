@@ -2,6 +2,7 @@
  "use strict";
  const form=document.querySelector("#planned-settings"), testForm=document.querySelector("#planned-test-settings");
  const maximum=8*1024*1024, previous={selection:false,test:false};
+ const bundleFormat="sparsiloop-planned-bundle-v1";
  let defaults=null, latest=null, loaded=null, fileVersion=0, reading=false;
  const number=v=>v===null || v===undefined ? "无法计算" : Number(v).toFixed(6);
  const count=v=>v===null || v===undefined ? "无法计算" : new Intl.NumberFormat("zh-CN",{maximumFractionDigits:2}).format(v);
@@ -50,12 +51,27 @@
   section.append(details);return section;
  }
  function source(record,message) {
-  loaded=record;reading=false;const sha=typeof record?.record_sha256==="string"?record.record_sha256.slice(0,12):"待校验";
-  document.querySelector("#planned-record-source").textContent=`${message} 记录：${sha}。复核时会检查完整内容、版本和选择规则。`;
+  loaded=record;reading=false;const raw=record?.format===bundleFormat?record.result:record;
+  const sha=typeof raw?.record_sha256==="string"?raw.record_sha256.slice(0,12):"待校验";
+  const environment=record?.format===bundleFormat && record.context?.selection?.state==="recorded" ?
+   "带有选择时的环境记录。" : "原文件没有选择时的环境，复核后也会保留未知。";
+  document.querySelector("#planned-record-source").textContent=`${message} ${environment} 记录：${sha}。复核时会检查完整内容、版本和选择规则。`;
   if(previous.test){const status=document.querySelector("#planned-test-status");status.className="";status.textContent="当前载入的选择记录已更新，下方仍是上次复核结果；请核对结果自身的条件和记录编号。";}
+ }
+ function runtimeView(result) {
+  const details=node("details");details.append(node("summary","查看选择、复核和生成报告时的环境"));
+  const describe=value=>{
+   if(value?.state!=="recorded")return {not_recorded:"未记录，不能从当前电脑反推",not_requested:"尚未开始复核",not_run:"这次未运行测试"}[value?.state]||"未记录";
+   const r=value.runtime;return `${r.python_implementation} ${r.python_version}；${r.os_family} / ${r.python_pointer_bits} 位 Python；SparsiLoop ${r.sparsiloop_version}`;
+  };
+  for(const [label,value] of [["选择时",result.context?.selection],["复核时",result.context?.test],
+   ["这次生成报告时",result.report_runtime?{state:"recorded",runtime:result.report_runtime}:null]])
+   details.append(node("p",`${label}：${describe(value)}。`,"scope"));
+  details.append(node("p","环境相同也不保证浮点逐位一致；这些是程序自行记录的信息，不是来源认证。完整环境和记录时间会随 ZIP 保存。","hint"));return details;
  }
  function output(mode,result) {
   const record=result.record, choice=mode==="selection"?record:record.selection;
+  const saved=result.selection_context?{format:bundleFormat,result:choice,context:result.selection_context}:choice;
   const target=document.querySelector(`#planned-${mode}-output`);target.replaceChildren();target.hidden=false;
   const names=new Map(choice.selection_summaries.map(r=>[r.id,candidate(r)]));
   if(mode==="selection") {
@@ -68,7 +84,7 @@
     failures.map(r=>[names.get(r.candidate_id),r.seed,statuses[r.run.status]||r.run.status,r.run.duration_completed,r.run.error||"—"])));target.append(d);}
    target.append(node("p",choice.selected_id?"下一步可以直接点击下面的复核按钮。候选、种子和条件已经保存在记录里，上方再改参数也不会改动它。":
     "没有合格候选，复核不会运行任何测试种子。先看提前停止或误差超限的原因，保留记录；如果要改方案，请把已看过的种子列入历史，再另存一份。","scope"));
-   latest=choice;source(choice,"已保留刚才生成的完整选择记录。");++fileVersion;testForm.elements.selection.value="";
+   latest=saved;source(saved,"已保留刚才生成的完整选择记录。");++fileVersion;testForm.elements.selection.value="";
    if(previous.test)document.querySelector("#planned-test-status").textContent="选择记录已更新，下方仍是上一份记录的复核结果；它的条件和下载文件保持原样。";
   } else {
    const messages={met_declared_tests:"所选方案在这次每个复核种子下都完整结束，而且位置误差达标。",
@@ -84,8 +100,8 @@
   const downloads=node("div",undefined,"downloads");
   downloads.append(button("下载这一步的完整报告 ZIP",()=>download(`sparsiloop-planned-${mode}-${Date.now()}.zip`,
    Uint8Array.from(atob(result.archive_base64),x=>x.charCodeAt(0)),"application/zip")),
-   button("另存完整选择记录",()=>download("selection.json",JSON.stringify(choice,null,2),"application/json")));
-  target.append(downloads,node("p","完整解压 ZIP 后打开 report.html。原始结果、全部候选或测试、轨迹、失败和完整条件都在里面；这里的小数只作简短显示。","hint"));previous[mode]=true;
+   button("另存选择记录和运行环境",()=>download(saved.format===bundleFormat?"selection-bundle.json":"selection.json",JSON.stringify(saved,null,2),"application/json")));
+  target.append(runtimeView(result),downloads,node("p","完整解压 ZIP 后打开 report.html。原始结果、全部候选或测试、轨迹、失败、条件和环境都在里面；这里的小数只作简短显示。","hint"));previous[mode]=true;
  }
  function invalid(mode,error) {
   const s=document.querySelector(`#planned-${mode}-status`);s.className="error";
@@ -111,7 +127,8 @@
  testForm.elements.selection.addEventListener("change",async()=>{
   const version=++fileVersion, file=testForm.elements.selection.files[0];reading=false;if(!file)return;reading=true;
   try{if(file.size>maximum)throw Error("文件超过网页的 8 MiB 限制，请用命令行复核");const value=JSON.parse(await file.text());if(version!==fileVersion)return;
-   if(value?.format!=="sparsiloop-planned-selection-v1")throw Error("请选择完整 selection.json，方案或 test.json 不能代替选择记录");source(value,`已读取 ${file.name}，尚未完成校验。`);
+   if(value?.format!=="sparsiloop-planned-selection-v1" && !(value?.format===bundleFormat && value.context?.phase==="selection"))
+    throw Error("请选择 selection-bundle.json 或原始 selection.json，方案和测试记录不能代替选择");source(value,`已读取 ${file.name}，尚未完成校验。`);
   }catch(e){if(version===fileVersion)invalid("test",e);}finally{if(version===fileVersion)reading=false;}
  });
  fetch("/api/planned/default").then(r=>{if(!r.ok)throw Error("默认方案加载失败，请刷新页面");return r.json();})
