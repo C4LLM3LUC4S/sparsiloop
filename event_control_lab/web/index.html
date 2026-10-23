@@ -141,9 +141,17 @@
   <section class="panel recipe-panel planned-panel" aria-labelledby="planned-title">
     <h2 id="planned-title">先选一个发送方案，再换一组条件复核</h2>
     <p class="scope">如果你想知道“最多发这么多条消息，哪个门槛能满足误差要求？”，可以从这里开始。先定好候选和两组种子，程序只用第一组选方案；第二组先留着，等你点击复核才运行。种子是随机输入的编号，分组本身不证明统计独立。</p>
-    <p class="hint">这里单独使用内置模型和固定反馈，把位置拉回 0；不训练 MFAC、ILC 或强化学习，也不读取上方表单的设置。它与事后按消息数配平的比较是两条不同流程。</p>
+    <p class="hint">这里把位置拉回 0，可以用固定反馈，也可以载入训练好的标量 Q 策略。这一步不训练；上方实验的设置不会自动带入，只有你点击复用时才载入完整策略。它与事后按消息数配平的比较是两条不同流程。</p>
     <h3>1. 先把这次任务定下来</h3>
     <form id="planned-settings" class="recipe-form">
+      <label class="recipe-wide">这次用哪种控制方式<select name="controller_kind"><option value="linear">固定反馈：沿用下方 kp、kd</option><option value="frozen">保存的 Q 策略：只选发送方式，不再训练</option></select></label>
+      <div id="planned-policy-settings" class="recipe-wide" hidden>
+        <label>载入完整策略或策略历史<input name="policy_file" type="file" accept=".json,application/json"></label>
+        <button type="button" id="planned-use-controller-policy">使用本页最新的策略与历史</button>
+        <p id="planned-policy-source" class="scope">还没有载入完整策略。</p>
+        <details id="planned-policy-history" hidden><summary>查看训练、评测和计划用过的编号</summary><pre></pre></details>
+        <p class="hint">策略文件最多 2 MiB；时间步长需为 20 ms，总时长 0.2–8 秒。对象、时长和输入上限沿用训练记录，初态仍用下方的固定设置。消息上限或最长间隔超出新时长时会调整并明确提示，之后可以再改。kp、kd 不参与 Q 策略。更大文件或其他时钟请用本地命令行。</p>
+      </div>
       <label>要控制的模型<select name="plant"><option value="scalar">一阶系统：观察位置 x</option><option value="double_integrator">位置—速度系统：观察 p 和 v</option></select></label>
       <label>每次模拟多少秒<input name="duration" type="number" min="0.2" max="8" step="0.02" value="4" required></label>
       <label>每个方案最多尝试发送几条消息<input name="budget" type="number" min="0" max="400" step="1" value="40" required></label>

@@ -121,6 +121,7 @@
   output.append(element("p",failures ? "下一步先看哪些运行没跑完，以及停止时间和原因。改条件后另存一份结果，保留这次失败。" :
    "先在同一种方法、同一组条件下比较误差和实际消息数。ILC 可以看前后轮次；强化学习要看测试阶段，训练成绩不能代替测试，也不要把不同方法直接排成总榜。","scope"));
   latest = result.checkpoint || null;
+  if(latest)window.dispatchEvent(new CustomEvent("sparsiloop-policy-saved",{detail:latest}));
   if(prefix === "saved-policy" && result.checkpoint) {
    describeLoadedPolicy(result.checkpoint,"当前页面已记住这次用过的测试种子。下次打开网页时要接着用，请另存新版策略。");
   }

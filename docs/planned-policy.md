@@ -2,7 +2,19 @@
 
 你已经保存了强化学习策略，想看看少发消息时能否满足自己的误差要求？这条本地流程会固定原 Q 表，只选择发送方式。选择完成后，再用一开始留出的条件复核；不会重新训练，也不会看完测试再换门槛。
 
-目前支持内置一阶对象、单输入和零目标。自定义对象以及 MFAC、ILC 的联合学习与选方案另做。网页还不能运行这种计划；下面的命令不需要额外依赖。
+目前支持内置一阶对象、单输入和零目标。自定义对象以及 MFAC、ILC 的联合学习与选方案另做。可以直接在本地网页完成，也可以用下面的命令；两条路径使用同一套选择、测试和历史校验。
+
+## 在网页里直接完成
+
+打开本地网页，找到“先选一个发送方案，再换一组条件复核”，把控制方式换成“保存的 Q 策略”。载入完整策略或历史文件；如果刚在上方运行了强化学习，点击“使用本页最新的策略与历史”即可，不用下载再上传。计划运行成功后，这个按钮会接续最新历史，避免退回最初的训练文件。
+
+网页会显示并锁定训练时长、20 ms 步长、内置标量对象和输入上限。若原表单的消息上限或最长间隔超出新时长，会调整并说明改了什么；它们仍可在选择前修改。初态始终使用你声明的固定值，不照搬原独立评测按种子抽取初态的规则。kp、kd 不参与 Q 策略。
+
+填写误差要求、门槛、选择编号和预留测试编号，再点击“只运行选择阶段”。程序不碰预留测试；选择完成后，页面内保留完整记录，下一步按原计划复核。测试结果会显示误差是否达标、实际消息数和失败原因。完整结束与达标不是一回事。
+
+每次成功后，当前策略会接上这一步的已用历史。展开“查看训练、评测和计划用过的编号”核对；重复编号会被拒绝，旧结果仍保留，换新编号可恢复。下载完整报告 ZIP 和最新 `policy-history.json` 再关闭页面；刷新后程序不会自动找到旧历史。复核原选择文件仍是重复执行，不是新增独立测试。
+
+网页策略文件最多 2 MiB，完整选择请求最多 8 MiB，0.2–8 秒、20 ms 步长，总潜在区间最多 20000。超出范围请用本地命令行，不截断策略或删除历史。网页只接受声明格式的 JSON，不执行模型或控制器 Python 代码。
 
 ## 先准备策略和方案
 
@@ -57,6 +69,6 @@ Python 接口为 `select_with_context(spec, policy_checkpoint=saved)`、`test_wi
 
 ## English
 
-Use `planned_study select --spec SPEC --policy-checkpoint CHECKPOINT --out NEW_FOLDER`, then run `test` on `selection-bundle.json`. The full saved scalar Q policy remains frozen. Each run has a fresh controller, no exploration or learning, and matching table hashes. Both schedules use the same policy and fixed configured initial state, unlike `evaluate-policy`, which samples initial states by seed and runs additional references.
+In the web planned form, choose the saved Q policy mode and load a full checkpoint/history or reuse the policy from the preceding training result. The trained scalar model, physical clock and input limit remain locked; any initial cap/heartbeat adjustment is shown before selection. The CLI remains `planned_study select --spec SPEC --policy-checkpoint CHECKPOINT --out NEW_FOLDER`, followed by `test` on `selection-bundle.json`. Both paths use the same frozen-policy protocol. Each run has a fresh controller, no exploration or learning, and matching table hashes. Both schedules use the same policy and fixed configured initial state, unlike `evaluate-policy`, which samples initial states by seed and runs additional references.
 
 Retain the trained model, physical clock and input limit. Exclude all known training, evaluation, declared development and planned-phase seeds from new selection/test lists. Continue a later plan with the latest `policy-history.json`; the compatible legacy checkpoint also retains the combined used-seed list. Failed attempts remain in history; unrun tests are not consumed. Rerunning an original choice is replication, not new independent testing. All candidates, failures, unknowns and trajectories remain. Declared history and checksums do not certify provenance, independence, stability or general superiority. The developer-observed teaching example is not adoption or hardware evidence.

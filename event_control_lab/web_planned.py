@@ -13,6 +13,7 @@ from .engine import Config
 from .planned_study import PlannedSpec, load_selection
 from .planned_models import FORMAT as MODEL_SELECTION_FORMAT
 from .planned_policy import FORMAT as POLICY_SELECTION_FORMAT
+from .planned_policy import load_policy_selection
 from .planned_context import as_bundle, export_bundle, selection_bundle, select_with_context, test_with_context
 
 
@@ -56,11 +57,16 @@ def pack(value):
 
 
 def select_from_web(value):
-    if not isinstance(value, dict) or set(value) != {"spec"}:
+    if not isinstance(value, dict) or set(value) not in ({"spec"}, {"spec", "policy_checkpoint"}):
         raise ValueError("请先填写完整方案；这里不接收 Python 代码，也不单独接收测试结果。")
     spec = PlannedSpec.from_dict(value["spec"])
     web_spec(spec)
-    return pack(select_with_context(spec))
+    policy = value.get("policy_checkpoint")
+    if "policy_checkpoint" in value and not isinstance(policy, dict):
+        raise ValueError("请载入完整策略或策略历史，空值不能代替策略，也不会改用线性反馈。")
+    if policy is not None and len(json.dumps(policy, ensure_ascii=False).encode()) > 2 * 1024 * 1024:
+        raise ValueError("网页策略文件最多 2 MiB，请用本地命令行保留完整策略与历史。")
+    return pack(select_with_context(spec, policy_checkpoint=policy))
 
 
 def test_from_web(value):
@@ -72,8 +78,9 @@ def test_from_web(value):
     if saved["result"].get("format") == MODEL_SELECTION_FORMAT:
         raise ValueError("这份记录使用本地 Python 模型，请回到原本地程序传入 plant=模型 后复核；网页不执行模型代码。")
     if saved["result"].get("format") == POLICY_SELECTION_FORMAT:
-        raise ValueError("这份记录复用了冻结策略，请用本地 test 命令载入同一份选择记录；网页暂不运行这种计划。")
-    spec = load_selection(saved["result"])
+        spec, _ = load_policy_selection(saved["result"])
+    else:
+        spec = load_selection(saved["result"])
     web_spec(spec)
     return pack(test_with_context(saved))
 
