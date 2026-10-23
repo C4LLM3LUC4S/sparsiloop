@@ -193,11 +193,13 @@
  testForm.addEventListener("submit",async e=>{e.preventDefault();if(window.labUI.isBusy())return;try{if(reading)throw Error("选择记录还在读取，请稍后再复核");if(!loaded)throw Error("请先运行选择阶段，或载入完整选择记录");const value={selection:loaded};if(loaded.format===workflowFormat)value.keep_history=true;await execute("test",value);}catch(e){invalid("test",e);}});
  document.querySelector("#planned-use-latest").addEventListener("click",()=>{if(!latest){invalid("test",Error("请先运行一次选择阶段"));return;}++fileVersion;testForm.elements.selection.value="";source(latest,"已载入刚才生成的完整选择记录。");});
  testForm.elements.selection.addEventListener("change",async()=>{
-  const version=++fileVersion, file=testForm.elements.selection.files[0];reading=false;if(!file)return;reading=true;
+  const version=++fileVersion, file=testForm.elements.selection.files[0];
+  source(null,file?'正在读取新选择记录，尚未载入；原结果仍保留。':'尚未载入选择记录，请选文件或显式复用刚才的记录。');
+  if(!file)return;reading=true;
   try{if(file.size>maximum)throw Error("文件超过网页的 8 MiB 限制，请用命令行复核");const value=JSON.parse(await file.text());if(version!==fileVersion)return;
    if(!['sparsiloop-planned-selection-v1','sparsiloop-planned-policy-selection-v1'].includes(value?.format) && !(value?.format===bundleFormat && value.context?.phase==="selection") && !(value?.format===workflowFormat && value.phase==='selection'))
     throw Error("请选择这一步保存的 selection-workflow.json、selection-bundle.json 或原始 selection.json；方案和测试记录不能代替选择");source(value,`已读取 ${file.name}，尚未完成校验。`);
-  }catch(e){if(version===fileVersion)invalid("test",e);}finally{if(version===fileVersion)reading=false;}
+  }catch(e){if(version===fileVersion){source(null,'新文件尚未载入，不会改用上一个选择。请另选完整记录，或显式复用刚才生成的记录。');invalid("test",e);}}finally{if(version===fileVersion)reading=false;}
  });
  form.elements.controller_kind.addEventListener('change',policyMode);
  window.addEventListener('sparsiloop-policy-saved',event=>{recentPolicy=JSON.parse(JSON.stringify(event.detail));});
