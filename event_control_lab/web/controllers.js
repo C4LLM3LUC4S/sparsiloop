@@ -9,6 +9,9 @@
   evaluation_linear_feedback:"测试：固定反馈控制"};
  const policies = {periodic:"周期发送", absolute:"绝对变化触发", relative:"相对变化触发"};
  const statuses = {complete:"完整结束", state_limit:"状态超限，提前停止", controller_error:"控制器出错", plant_error:"模型出错"};
+ const policyFormats=["sparsiloop-frozen-policy-v1","sparsiloop-planned-policy-history-v1","sparsiloop-policy-history-v2"];
+ const checkpointOf=value=>value?.format==="sparsiloop-frozen-policy-v1"?value:value?.checkpoint;
+ window.addEventListener('sparsiloop-policy-saved',event=>{if(policyFormats.includes(event.detail?.format))latest=JSON.parse(JSON.stringify(event.detail));});
  const numeric = name => {
   const raw = form.elements[name].value.trim(), value = Number(raw);
   if (!raw || !Number.isFinite(value)) throw Error("请把数字填完整，不要使用 NaN 或无穷大");
@@ -40,14 +43,22 @@
   document.querySelector("#saved-policy-source").textContent=message;
   document.querySelector("#saved-policy-history").hidden=!value;
   if(!value)return;
+  document.querySelector("#saved-policy-error").hidden=true;
+  const checkpoint=checkpointOf(value);
   for(const [field, target, label] of [["training_seeds","#saved-training-seeds","训练用过"],
    ["previous_evaluation_seeds","#saved-test-seeds","此前已用（评测、开发或计划）"]]) {
-   const items=value[field];
+   const items=checkpoint?.[field];
    const valid=Array.isArray(items) && items.length>=1 && items.length<=512 &&
     items.every(x=>Number.isSafeInteger(x) && x>=0 && x<2**32);
    document.querySelector(target).textContent=valid ? `${label}（${items.length} 个）：${items.join(", ")}` :
     `${label}：记录格式不正确，请核对策略文件。`;
   }
+  let phases=document.querySelector('#saved-phase-history');
+  if(!phases){phases=element('pre');phases.id='saved-phase-history';document.querySelector('#saved-policy-history').append(phases);}
+  phases.hidden=value.format==='sparsiloop-frozen-policy-v1';
+  const origin=value.origin?.result?.policy_after||value.origin?.policy_after||value.origin;
+  phases.textContent=value.format==='sparsiloop-planned-policy-history-v1'?JSON.stringify({declared_development_seeds:value.declared_development_seeds,planned_history:value.planned_history},null,2):
+   JSON.stringify({original_planned_phases:origin?.planned_history||[],subsequent_phases:(value.events||[]).map(e=>({phase:e.phase,seeds:e.seeds}))},null,2);
  }
  form.addEventListener("input",()=>{showMethod();stale("controller");});
  savedForm.addEventListener("input",()=>stale("saved-policy"));
@@ -117,13 +128,15 @@
    download(`sparsiloop-${prefix}-${Date.now()}.zip`,bytes,"application/zip");
   }));
   if (result.checkpoint) downloads.append(button("另存策略，留到下次测试",()=>download("policy-checkpoint.json",JSON.stringify(result.checkpoint,null,2),"application/json")));
+  if(result.policy_history)downloads.append(button('另存完整历史，接着下次任务',()=>download('policy-history.json',JSON.stringify(result.policy_history,null,2),'application/json')));
   output.append(downloads, element("p","ZIP 要完整解压，再打开 report.html。设置、每轮轨迹、失败和原始结果都在里面；下载后可以关掉网页再阅读。","hint"));
   output.append(element("p",failures ? "下一步先看哪些运行没跑完，以及停止时间和原因。改条件后另存一份结果，保留这次失败。" :
    "先在同一种方法、同一组条件下比较误差和实际消息数。ILC 可以看前后轮次；强化学习要看测试阶段，训练成绩不能代替测试，也不要把不同方法直接排成总榜。","scope"));
-  latest = result.checkpoint || null;
+  if(result.continuation_note)output.append(element('p',result.continuation_note,'scope'));
+  latest = result.policy_history || result.checkpoint || null;
   if(latest)window.dispatchEvent(new CustomEvent("sparsiloop-policy-saved",{detail:latest}));
   if(prefix === "saved-policy" && result.checkpoint) {
-   describeLoadedPolicy(result.checkpoint,"当前页面已记住这次用过的测试种子。下次打开网页时要接着用，请另存新版策略。");
+   describeLoadedPolicy(latest,"当前页面已记住这次的策略与历史。下次接着用，请另存最新的完整历史；原始策略仍可单独保存。");
   }
   previous[prefix] = true;
  }
@@ -164,23 +177,21 @@
    if(file.size > 2*1024*1024)throw Error("文件超过网页的 2 MiB 限制，请用命令行加载");
    const value=JSON.parse(await file.text());
    if(version!==fileVersion)return;
-   if(value?.format==="sparsiloop-policy-history-v2")throw Error("这份文件保留了跨流程的完整历史，请用本地命令 python -m event_control_lab.policy_journal evaluate 继续。网页暂不接收新格式；请保留原文件，不要删字段改格式");
-   if(value?.format==="sparsiloop-planned-policy-history-v1")throw Error("这是选择/复核用的完整历史。继续原计划请回到下方复核入口；要单独测试，请在原结果中展开“想换一组随机初态再测？”，载入或另存 policy-checkpoint.json，完整 ZIP 中也有。请保留原历史文件；这里会按种子生成初态并增加对照");
-   if(value?.format!=="sparsiloop-frozen-policy-v1")throw Error("请选择完整的 policy-checkpoint.json，旧的原始 Q 表不够");
+   if(!policyFormats.includes(value?.format))throw Error("请选择完整策略或 policy-history.json，只有原始 Q 表不够");
    describeLoadedPolicy(value,`已选择 ${file.name}。运行前还会检查参数、来源摘要和种子。`);
   } catch(error){if(version!==fileVersion)return;describeLoadedPolicy(null,"这个文件还不能用于测试。");invalid("saved-policy",error);}
  });
  document.querySelector("#use-latest-policy").addEventListener("click",()=>{
   if(!latest){invalid("saved-policy",Error("请先运行一次强化学习，或选择保存好的策略文件"));return;}
   ++fileVersion;savedForm.elements.checkpoint.value="";stale("saved-policy");
-  describeLoadedPolicy(latest,"已载入刚才成功实验保存的策略，包括已用过的测试种子。");
+  describeLoadedPolicy(latest,"已载入本页最新成功结果中的策略与完整历史；这次还没有运行，请先核对已用编号。");
  });
  window.addEventListener("sparsiloop-standalone-policy",event=>{
   if(window.labUI.isBusy())return;
   const value=event.detail;
-  if(value?.format!=="sparsiloop-frozen-policy-v1")return;
+  if(!policyFormats.includes(value?.format))return;
   ++fileVersion;savedForm.elements.checkpoint.value="";stale("saved-policy");
-  describeLoadedPolicy(JSON.parse(JSON.stringify(value)),"已载入原计划的同一份策略，训练、旧评测、开发及选择/测试编号都保留了。这次还没有运行；请换新编号。阶段名称继续保存在原 policy-history.json 中。");
+  describeLoadedPolicy(JSON.parse(JSON.stringify(value)),"已载入原计划的同一份策略与完整历史。这次还没有运行；先完成原复核，再换新编号单独测试，后续阶段会接着保存。");
   document.querySelector("#saved-policy-error").hidden=true;
   const status=document.querySelector("#saved-policy-status");status.className="";
   status.textContent=`接下来是单独测试：按种子生成初态，运行三种发送方式及固定反馈对照。原计划使用固定初态，结果请分开看。${previous["saved-policy"]?" 下方仍是上次结果。":""}`;
@@ -190,7 +201,9 @@
  savedForm.addEventListener("submit",async event=>{
   event.preventDefault();if(window.labUI.isBusy())return;
   try {if(!loaded)throw Error("请先选择一个完整策略文件");
-   await execute("saved-policy","/api/evaluate-policy",{checkpoint:loaded,seeds:seeds(savedForm.elements.seeds.value)});
+   const payload={checkpoint:loaded,seeds:seeds(savedForm.elements.seeds.value),keep_history:true};
+   if(new TextEncoder().encode(JSON.stringify(payload)).length>2*1024*1024)throw Error('完整请求超过 2 MiB，请下载最新历史后用本地命令继续；不要回到旧文件重试');
+   await execute("saved-policy","/api/evaluate-policy",payload);
   } catch(error){invalid("saved-policy",error);}
  });
  fetch("/api/controllers/default").then(r=>{if(!r.ok)throw Error("默认设置没有加载成功");return r.json();}).then(value=>{

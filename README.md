@@ -17,7 +17,7 @@ A local lab to compare event-triggered and periodic control under communication 
 | 先看看少发消息有什么影响 | 运行 `python quickstart.py`，在网页调整条件后比较误差与实际消息数 |
 | 在消息上限内选一个发送门槛，再换条件复核 | [选择与复核](docs/planned-study.md)：网页或本地命令保存全部候选与失败，测试结果不会改选 |
 | 用训练好的 Q 策略选发送方式 | [冻结策略复用](docs/planned-policy.md)：网页可复用前一结果，也可载入完整文件；不重新训练 |
-| 在单独评测与下一轮计划之间接着走 | [完整历史接续](docs/policy-history.md)：本地 API/CLI 保留起点与后续阶段；新 v2 格式尚未接入网页 |
+| 在单独评测与下一轮计划之间接着走 | [完整历史接续](docs/policy-history.md)：网页或本地 API/CLI 保留起点与后续阶段，不用手抄已用编号 |
 | 换成自己的对象模型 | [本地模型接入](docs/planned-models.md)：显式保留参数、单位和来源；网页不上传或执行模型代码 |
 | 换电脑复核，或只重绘旧报告 | [环境记录与重绘](docs/planned-study.md#换一台电脑时先看环境记录)：缺失的旧环境仍未知，不再运行的步骤不会冒充新测试 |
 

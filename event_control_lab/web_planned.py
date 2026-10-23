@@ -57,11 +57,17 @@ def pack(value):
 
 
 def select_from_web(value):
-    if not isinstance(value, dict) or set(value) not in ({"spec"}, {"spec", "policy_checkpoint"}):
+    if not isinstance(value, dict) or set(value) not in ({"spec"}, {"spec", "policy_checkpoint"},
+                                                     {"spec", "policy_checkpoint", "keep_history"}):
         raise ValueError("请先填写完整方案；这里不接收 Python 代码，也不单独接收测试结果。")
     spec = PlannedSpec.from_dict(value["spec"])
     web_spec(spec)
     policy = value.get("policy_checkpoint")
+    if "keep_history" in value and type(value["keep_history"]) is not bool:
+        raise ValueError("完整历史选项格式不正确，请使用原网页。")
+    if value.get("keep_history"):
+        from .web_journal import select_from_web as select_history
+        return select_history(spec,policy)
     if isinstance(policy, dict) and policy.get("format") == "sparsiloop-policy-history-v2":
         raise ValueError("这份完整接续历史请用本地命令 python -m event_control_lab.policy_journal select 继续；网页暂不接收这个新格式，请保留原文件。")
     if "policy_checkpoint" in value and not isinstance(policy, dict):
@@ -72,8 +78,13 @@ def select_from_web(value):
 
 
 def test_from_web(value):
-    if not isinstance(value, dict) or set(value) != {"selection"}:
+    if not isinstance(value, dict) or set(value) not in ({"selection"},{"selection","keep_history"}):
         raise ValueError("复核只接收完整选择记录，不能临时换门槛、参数或测试种子。")
+    if "keep_history" in value and type(value["keep_history"]) is not bool:
+        raise ValueError("完整历史选项格式不正确，请使用原网页。")
+    if value.get("keep_history"):
+        from .web_journal import test_from_web as test_history
+        return test_history(value["selection"])
     if isinstance(value["selection"], dict) and value["selection"].get("format") == "sparsiloop-policy-workflow-v1":
         raise ValueError("这份完整接续记录请用本地命令 python -m event_control_lab.policy_journal test 复核；网页暂不接收这个新格式，请保留原文件。")
     saved = as_bundle(value["selection"])

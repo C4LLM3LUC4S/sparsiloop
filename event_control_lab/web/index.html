@@ -119,12 +119,12 @@
   </section>
   <section class="panel recipe-panel" aria-labelledby="saved-policy-title">
     <h2 id="saved-policy-title">保存的策略，拿出来再测一次</h2>
-    <p class="scope">载入完整的 policy-checkpoint.json，用新种子测试，不需要重新训练。模型、时间尺度和输入上限会沿用保存时的设置；这里支持内置一阶模型，暂不接收 Python 代码或自定义模型。</p>
+    <p class="scope">载入完整策略或 policy-history.json，用新编号测试，不需要重新训练。后来的测试会接在完整历史后；模型、时间尺度和输入上限沿用训练约定。这里支持内置一阶模型，不接收 Python 代码或自定义模型。</p>
     <p class="hint">刚做完下方的选择/复核？在原结果中展开“想换一组随机初态再测？”，就能直接载入。若要继续原计划，请留在下方的复核入口；这里会按种子生成初态，运行三种发送方式及固定反馈对照。</p>
     <form id="saved-policy-settings" class="recipe-form">
       <label>选择保存的策略文件<input name="checkpoint" type="file" accept=".json,application/json"></label>
       <label>新的测试种子，用英文逗号分隔<input name="seeds" type="text" value="2001,2002,2003" required></label>
-      <button type="button" id="use-latest-policy">使用刚才实验保存的策略</button>
+      <button type="button" id="use-latest-policy">使用本页最新的策略与历史</button>
       <button type="submit">只测试，不训练</button>
     </form>
     <p id="saved-policy-source" class="hint">还没有载入策略。请选文件，或先运行上面的强化学习实验。</p>
@@ -137,7 +137,7 @@
     <p id="saved-policy-status" role="status" aria-live="polite">等待选择策略</p>
     <details id="saved-policy-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
     <div id="saved-policy-output" hidden></div>
-    <p class="hint">每次请另选种子，已有训练和测试种子会随策略保留。编号不同本身不证明统计独立；如果你根据这些结果改了参数，就要把它们记为探索，再另定测试方案。</p>
+    <p class="hint">每次请另选编号，已有训练、评测、开发和计划编号会随历史保留。编号不同本身不证明统计独立；如果你根据这些结果改了参数，就要保留探索记录，再另定测试方案。</p>
   </section>
   <section class="panel recipe-panel planned-panel" aria-labelledby="planned-title">
     <h2 id="planned-title">先选一个发送方案，再换一组条件复核</h2>
@@ -188,7 +188,7 @@
     <details id="planned-selection-error" hidden><summary>查看原始错误（排查时使用）</summary><pre></pre></details>
     <div id="planned-selection-output" hidden></div>
     <h3>2. 按保存好的条件复核</h3>
-    <p class="scope">刚才的完整选择记录会留在页面里。留到下次使用，推荐保存 selection-bundle.json，把选择时的运行环境也带上；原始 selection.json 仍可用，但缺失的环境会保留未知。复核不会用上方刚改过的参数替换保存条件。刷新网页前，请下载并保留记录。</p>
+    <p class="scope">刚才的完整选择记录会留在页面里。请保存这一步提供的完整文件，把策略、阶段历史和运行环境一起带走。原有固定反馈的 selection-bundle.json 或 selection.json 仍可用，缺失的环境仍未知。复核不会用上方刚改过的参数替换原条件；刷新前，请下载保留记录。</p>
     <form id="planned-test-settings" class="recipe-form">
       <label>或载入选择记录（推荐带环境的记录包）<input name="selection" type="file" accept=".json,application/json"></label>
       <button type="button" id="planned-use-latest">使用刚才生成的选择记录</button>

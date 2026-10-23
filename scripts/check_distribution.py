@@ -103,6 +103,7 @@ worker = Thread(target=server.serve_forever, daemon=True)
 worker.start()
 api_checks = {}
 frozen_web_checks = {}
+journal_web_checks = {}
 web_saved_bundle = None
 try:
     for route, payload, expected in (("/api/compare", asdict(config), single),
@@ -173,6 +174,39 @@ try:
             frozen_web_checks[phase] = True
         finally:
             connection.close()
+    web_history = journal_origin
+    choice_workflow = None
+    for phase, expected in (("evaluation", journal_evaluation["data"]),
+                            ("selection", journal_choice["data"]["result"]),
+                            ("test", journal_test["data"]["result"])):
+        route, payload = "/api/evaluate-policy", {"checkpoint": web_history, "seeds": [9001], "keep_history": True}
+        if phase == "selection":
+            route, payload = "/api/planned/select", {"spec": asdict(journal_spec), "policy_checkpoint": web_history,
+                                                   "keep_history": True}
+        elif phase == "test":
+            route, payload = "/api/planned/test", {"selection": choice_workflow, "keep_history": True}
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=10)
+        try:
+            connection.request("POST", route, body=json.dumps(payload))
+            response = connection.getresponse()
+            assert response.status == 200, (phase, response.status)
+            value = json.loads(response.read())
+            workflow = load_workflow(value["workflow"])
+            actual = workflow["data"] if phase == "evaluation" else workflow["data"]["result"]
+            assert actual == json.loads(json.dumps(expected)), phase
+            assert workflow["history_after"] == value["policy_history"]
+            web_history = value["policy_history"]
+            with zipfile.ZipFile(io.BytesIO(base64.b64decode(value["archive_base64"]))) as archive:
+                assert archive.testzip() is None
+                assert json.loads(archive.read("policy-workflow.json")) == workflow
+                assert json.loads(archive.read("policy-history.json")) == web_history
+                if phase == "test":
+                    assert json.loads(archive.read("selection-workflow.json")) == choice_workflow
+            if phase == "selection":
+                choice_workflow = workflow
+            journal_web_checks[phase] = True
+        finally:
+            connection.close()
 finally:
     server.shutdown()
     server.server_close()
@@ -200,6 +234,7 @@ print(json.dumps({
     "custom_model": {"compare": custom_compare, "study": custom_study, "controller_lab": custom_learning},
     "installed_http_api_matches_direct_calls": api_checks,
     "installed_web_frozen_planned": frozen_web_checks,
+    "installed_web_policy_journal": journal_web_checks,
 }))
 '''
 
@@ -364,7 +399,8 @@ def main():
                      "examples/planned_model_case.py", "docs/planned-models.md",
                      "event_control_lab/planned_policy.py", "docs/planned-policy.md", "examples/planned-frozen-policy.json",
                      "event_control_lab/policy_journal.py", "event_control_lab/policy_journal_report.py",
-                     "event_control_lab/policy_journal_cli.py", "docs/policy-history.md", "examples/continued-policy-plan.json"):
+                     "event_control_lab/policy_journal_cli.py", "event_control_lab/web_journal.py",
+                     "tests/test_web_journal.py", "docs/policy-history.md", "examples/continued-policy-plan.json"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -417,6 +453,7 @@ def main():
             "frozen_policy_history_and_original_choice_preserved": True,
             "installed_chronological_policy_api_cli_and_redraw": True,
             "installed_web_frozen_planned": installed["installed_web_frozen_planned"],
+            "installed_web_policy_journal": installed["installed_web_policy_journal"],
             "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),
