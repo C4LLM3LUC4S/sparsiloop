@@ -33,7 +33,7 @@ jobs:
       - name: Check source
         run: python -m ruff check .
       - name: Check page history continuation and repeated-plan recovery
-        run: node --test --test-reporter=tap tests/web_history_memory.test.js tests/web_record_input.test.js
+        run: node --test --test-reporter=tap tests/web_history_memory.test.js tests/web_record_input.test.js tests/web_continuation_downloads.test.js
       - name: Build wheel and source distribution
         run: python -m build --outdir dist
       - name: Check offline install, APIs, CLI and extracted source tests
