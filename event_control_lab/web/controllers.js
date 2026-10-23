@@ -41,7 +41,7 @@
   document.querySelector("#saved-policy-history").hidden=!value;
   if(!value)return;
   for(const [field, target, label] of [["training_seeds","#saved-training-seeds","训练用过"],
-   ["previous_evaluation_seeds","#saved-test-seeds","测试用过"]]) {
+   ["previous_evaluation_seeds","#saved-test-seeds","此前已用（评测、开发或计划）"]]) {
    const items=value[field];
    const valid=Array.isArray(items) && items.length>=1 && items.length<=512 &&
     items.every(x=>Number.isSafeInteger(x) && x>=0 && x<2**32);
@@ -164,6 +164,7 @@
    if(file.size > 2*1024*1024)throw Error("文件超过网页的 2 MiB 限制，请用命令行加载");
    const value=JSON.parse(await file.text());
    if(version!==fileVersion)return;
+   if(value?.format==="sparsiloop-planned-policy-history-v1")throw Error("这是选择/复核用的完整历史。继续原计划请回到下方复核入口；要单独测试，请在原结果中展开“想换一组随机初态再测？”，载入或另存 policy-checkpoint.json，完整 ZIP 中也有。请保留原历史文件；这里会按种子生成初态并增加对照");
    if(value?.format!=="sparsiloop-frozen-policy-v1")throw Error("请选择完整的 policy-checkpoint.json，旧的原始 Q 表不够");
    describeLoadedPolicy(value,`已选择 ${file.name}。运行前还会检查参数、来源摘要和种子。`);
   } catch(error){if(version!==fileVersion)return;describeLoadedPolicy(null,"这个文件还不能用于测试。");invalid("saved-policy",error);}
@@ -172,6 +173,18 @@
   if(!latest){invalid("saved-policy",Error("请先运行一次强化学习，或选择保存好的策略文件"));return;}
   ++fileVersion;savedForm.elements.checkpoint.value="";stale("saved-policy");
   describeLoadedPolicy(latest,"已载入刚才成功实验保存的策略，包括已用过的测试种子。");
+ });
+ window.addEventListener("sparsiloop-standalone-policy",event=>{
+  if(window.labUI.isBusy())return;
+  const value=event.detail;
+  if(value?.format!=="sparsiloop-frozen-policy-v1")return;
+  ++fileVersion;savedForm.elements.checkpoint.value="";stale("saved-policy");
+  describeLoadedPolicy(JSON.parse(JSON.stringify(value)),"已载入原计划的同一份策略，训练、旧评测、开发及选择/测试编号都保留了。这次还没有运行；请换新编号。阶段名称继续保存在原 policy-history.json 中。");
+  document.querySelector("#saved-policy-error").hidden=true;
+  const status=document.querySelector("#saved-policy-status");status.className="";
+  status.textContent=`接下来是单独测试：按种子生成初态，运行三种发送方式及固定反馈对照。原计划使用固定初态，结果请分开看。${previous["saved-policy"]?" 下方仍是上次结果。":""}`;
+  document.querySelector("#saved-policy-title").scrollIntoView({block:"start"});
+  savedForm.elements.seeds.focus({preventScroll:true});
  });
  savedForm.addEventListener("submit",async event=>{
   event.preventDefault();if(window.labUI.isBusy())return;

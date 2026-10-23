@@ -120,6 +120,7 @@
   <section class="panel recipe-panel" aria-labelledby="saved-policy-title">
     <h2 id="saved-policy-title">保存的策略，拿出来再测一次</h2>
     <p class="scope">载入完整的 policy-checkpoint.json，用新种子测试，不需要重新训练。模型、时间尺度和输入上限会沿用保存时的设置；这里支持内置一阶模型，暂不接收 Python 代码或自定义模型。</p>
+    <p class="hint">刚做完下方的选择/复核？在原结果中展开“想换一组随机初态再测？”，就能直接载入。若要继续原计划，请留在下方的复核入口；这里会按种子生成初态，运行三种发送方式及固定反馈对照。</p>
     <form id="saved-policy-settings" class="recipe-form">
       <label>选择保存的策略文件<input name="checkpoint" type="file" accept=".json,application/json"></label>
       <label>新的测试种子，用英文逗号分隔<input name="seeds" type="text" value="2001,2002,2003" required></label>
