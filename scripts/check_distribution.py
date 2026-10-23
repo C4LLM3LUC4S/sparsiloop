@@ -74,6 +74,13 @@ model_choice = select_with_context(planned_spec, plant=planned_adapter)
 model_test = test_with_context(model_choice, plant=planned_adapter)
 assert model_test["context"]["selection"] == model_choice["context"]["selection"]
 assert all(row["run"]["plant"] == planned_adapter.metadata() for row in model_test["result"]["test_runs"])
+frozen_spec = replace(planned_spec, config=replace(learning_spec.config, budget=5, initial_position=0.75),
+    previously_used_seeds=(7001,))
+frozen_choice = select_with_context(frozen_spec, policy_checkpoint=checkpoint(learning))
+frozen_test = test_with_context(frozen_choice)
+assert frozen_test["context"]["selection"] == frozen_choice["context"]["selection"]
+assert [row["phase"] for row in frozen_test["result"]["policy_after"]["planned_history"]] == ["selection", "test"]
+assert frozen_test["result"]["policy_after"]["declared_development_seeds"] == [7001]
 
 class QuietHandler(Handler):
     def log_message(self, *args):
@@ -151,6 +158,7 @@ print(json.dumps({
     "controller_lab": learning,
     "planned_selection": planned_selection, "planned_test": planned_test,
     "custom_planned": {"selection": model_choice["result"], "test": model_test["result"]},
+    "frozen_planned": {"selection": frozen_choice["result"], "test": frozen_test["result"]},
     "custom_model": {"compare": custom_compare, "study": custom_study, "controller_lab": custom_learning},
     "installed_http_api_matches_direct_calls": api_checks,
 }))
@@ -222,7 +230,7 @@ def main():
             raise ValueError("unexpected runtime dependency")
         if installed["distribution"] != "sparsiloop" or installed["runtime_dependencies"] is None:
             raise ValueError("installed distribution metadata is missing or misnamed")
-        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "custom_model", "planned_selection", "planned_test", "custom_planned"):
+        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "custom_model", "planned_selection", "planned_test", "custom_planned", "frozen_planned"):
             if installed[key] != source[key]:
                 raise ValueError(f"installed/source mismatch: {key}")
         for command in ("sparsiloop", "event-control-lab"):
@@ -270,13 +278,32 @@ def main():
             raise ValueError("installed redraw filled an unrecorded old execution environment")
         if (redrawn / "selection.json").read_bytes() != original:
             raise ValueError("installed redraw changed the raw selection result")
+        frozen_spec = base / "frozen spec.json"
+        frozen_checkpoint = base / "frozen checkpoint.json"
+        frozen_spec.write_text(json.dumps(installed["frozen_planned"]["selection"]["spec"]), encoding="utf-8")
+        frozen_checkpoint.write_text(json.dumps(installed["frozen_planned"]["selection"]["policy_before"]), encoding="utf-8")
+        frozen_choice, frozen_test = base / "frozen choice", base / "frozen test"
+        run([str(python), "-I", "-m", "event_control_lab.planned_study", "select", "--spec", str(frozen_spec),
+             "--policy-checkpoint", str(frozen_checkpoint), "--out", str(frozen_choice)], base, logs, "installed-frozen-select")
+        frozen_original = (frozen_choice / "selection-bundle.json").read_bytes()
+        if json.loads((frozen_choice / "selection.json").read_bytes()) != installed["frozen_planned"]["selection"]:
+            raise ValueError("installed frozen selection CLI differs from API")
+        run([str(python), "-I", "-m", "event_control_lab.planned_study", "test",
+             str(frozen_choice / "selection-bundle.json"), "--out", str(frozen_test)], base, logs, "installed-frozen-test")
+        if json.loads((frozen_test / "test.json").read_bytes()) != installed["frozen_planned"]["test"]:
+            raise ValueError("installed frozen test CLI differs from API")
+        if (frozen_choice / "selection-bundle.json").read_bytes() != frozen_original:
+            raise ValueError("frozen test modified its original choice")
+        if not (frozen_test / "policy-history.json").is_file():
+            raise ValueError("frozen test omitted the continuation history")
         extracted = extract_source(archive, base / "fresh source")
         for path in ("README.md", "README.en.md", "BRANDING.md", "START_HERE.md", "quickstart.py", "docs/grid-check.md",
                      "examples/grid-check.json", "examples/own_model_case.py", "docs/own-model.md", "scripts/check_distribution.py", "docs/planned-study.md",
                      "examples/planned-study.json", "event_control_lab/planned_study.py",
                      "event_control_lab/planned_report.py", "event_control_lab/planned_cli.py",
                      "event_control_lab/planned_context.py", "event_control_lab/planned_models.py",
-                     "examples/planned_model_case.py", "docs/planned-models.md"):
+                     "examples/planned_model_case.py", "docs/planned-models.md",
+                     "event_control_lab/planned_policy.py", "docs/planned-policy.md", "examples/planned-frozen-policy.json"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -325,6 +352,8 @@ def main():
             "installed_custom_model_compare_study_learning_match_source": True,
             "installed_custom_planned_selection_and_test_match_source": True,
             "extracted_local_model_separate_selection_and_test": True,
+            "installed_frozen_policy_planned_cli_api_parity": True,
+            "frozen_policy_history_and_original_choice_preserved": True,
             "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),

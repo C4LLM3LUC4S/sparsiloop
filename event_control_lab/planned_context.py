@@ -11,6 +11,7 @@ import sys
 from . import __version__
 from .planned_study import FORMAT as SELECTION_FORMAT, digest, select_schedule, test_schedule
 from .planned_models import FORMAT as MODEL_SELECTION_FORMAT, TEST_FORMAT as MODEL_TEST_FORMAT
+from .planned_policy import FORMAT as POLICY_SELECTION_FORMAT, TEST_FORMAT as POLICY_TEST_FORMAT
 
 
 BUNDLE_FORMAT = "sparsiloop-planned-bundle-v1"
@@ -31,9 +32,9 @@ def runtime_info():
 
 def phase_of(result):
     if isinstance(result, dict):
-        if result.get("format") in (SELECTION_FORMAT, MODEL_SELECTION_FORMAT):
+        if result.get("format") in (SELECTION_FORMAT, MODEL_SELECTION_FORMAT, POLICY_SELECTION_FORMAT):
             return "selection"
-        if result.get("analysis") in ("planned-budget-test-v1", MODEL_TEST_FORMAT):
+        if result.get("analysis") in ("planned-budget-test-v1", MODEL_TEST_FORMAT, POLICY_TEST_FORMAT):
             return "test"
     raise ValueError("请选择完整的选择记录、测试记录或带环境的记录包；实验方案不能代替结果。")
 
@@ -112,9 +113,14 @@ def as_bundle(value):
     return {"format": BUNDLE_FORMAT, "result": value, "context": context_for(value)}
 
 
-def select_with_context(spec, *, plant=None):
+def select_with_context(spec, *, plant=None, policy_checkpoint=None):
+    if plant is not None and policy_checkpoint is not None:
+        raise ValueError("这条冻结策略流程先使用内置标量对象，不能同时换成本地模型。")
     runtime = runtime_info()
-    if plant is None:
+    if policy_checkpoint is not None:
+        from .planned_policy import select_policy_schedule
+        result = select_policy_schedule(spec, policy_checkpoint=policy_checkpoint)
+    elif plant is None:
         result = select_schedule(spec)
     else:
         from .planned_models import select_model_schedule
@@ -128,7 +134,12 @@ def test_with_context(value, *, plant=None):
     if saved["context"]["phase"] != "selection":
         raise ValueError("复核需要 selection-bundle.json 或 selection.json，测试记录不能代替选择。")
     runtime = runtime_info()
-    if saved["result"].get("format") == MODEL_SELECTION_FORMAT:
+    if saved["result"].get("format") == POLICY_SELECTION_FORMAT:
+        if plant is not None:
+            raise ValueError("这份选择记录使用内置标量对象和保存的冻结策略，复核时不能更换模型。")
+        from .planned_policy import test_policy_schedule
+        result = test_policy_schedule(saved["result"])
+    elif saved["result"].get("format") == MODEL_SELECTION_FORMAT:
         from .planned_models import test_model_schedule
         result = test_model_schedule(saved["result"], plant=plant)
     else:
