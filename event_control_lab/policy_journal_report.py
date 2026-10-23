@@ -7,7 +7,27 @@ import tempfile
 
 from . import planned_context, policy
 from .planned_report import page, table, write_json
-from .policy_journal import load_workflow, origin_history
+from .policy_journal import load_workflow, origin_history, reserved_seeds
+
+
+def continuation_guidance(value):
+    workflow = '<a href="policy-workflow.json" download>policy-workflow.json</a>'
+    history = '<a href="policy-history.json" download>policy-history.json</a>'
+    if reserved_seeds(value["history_after"]):
+        return ('<p>方案已经选好，预留的复核还没运行。下一步先保存这次选择的完整记录 '
+                + workflow + '，重新打开网页后，把它载入“按原计划复核”区；也可以用本地 test 命令继续。'
+                '它保留原来的候选、条件和结果，不会重新选方案。</p><p>同时保留完整 ZIP 和 '
+                + history + '。完整历史不能代替选择记录；请先完成这次复核，再开始新任务。</p>')
+    text = '<p>接着做新任务，请保存最新的 ' + history + '；它保留起点文件和后续每个阶段。'
+    if value["phase"] == "selection":
+        text += ('这一轮没有合格候选，没有待运行的复核。保存 ' + workflow
+                 + ' 可以按原计划生成“未运行测试”的记录，或只重绘这次选择。</p>')
+    else:
+        text += '只重绘当前这一步，请保存 ' + workflow + '。</p>'
+        if value["phase"] == "test":
+            text += ('<p>想重复这一轮复核，请用选择阶段保存的完整选择记录。当前的 '
+                     'policy-workflow.json 是复核结果，不能当作选择文件再交给 test。</p>')
+    return text
 
 
 def history_page(value):
@@ -26,7 +46,7 @@ def history_page(value):
               "earlier_evaluation_seeds": original["earlier_evaluation_seeds"],
               "declared_development_seeds": original["declared_development_seeds"],
               "planned_history": original["planned_history"]}
-    body = '<section><h2>下次从哪个文件接着做？</h2><p>做新任务，用最新的 <a href="policy-history.json" download>policy-history.json</a>；它保留起点文件和后续每个阶段。复核或重绘当前这一步，用 <a href="policy-workflow.json" download>policy-workflow.json</a>。</p>'
+    body = '<section><h2>下次从哪个文件接着做？</h2>' + continuation_guidance(value)
     body += '<p>请沿同一条记录接着走。程序不会自动找到其他目录或合并另一分支；若按测试结果继续调参，要记录探索并另定新条件。</p><p>原 Q 表没有更新，已知编号全部保留。摘要只核对文件是否对应，不认证来源或独立性。</p></section>'
     body += '<section><h2>起点文件里原来记了什么？</h2><p>原文件原样保存在新历史的 origin 字段中。下面只整理它已有的编号；无法从当前电脑补出更早的时间或缺失阶段。</p><details><summary>查看起点中的训练、评测和计划编号</summary><pre>'
     body += html.escape(json.dumps(origin, ensure_ascii=False, indent=2)) + '</pre></details></section>'
@@ -65,9 +85,8 @@ def export_workflow(value, destination, input_hash=None):
         report = folder / "report.html"
         text = report.read_text(encoding="utf-8")
         notice = ('<section id="policy-continuation"><h2>这一步已接在原历史之后</h2>'
-                  '<p>查看<a href="history.html">完整阶段顺序和下一步操作</a>。新任务请载入最新 '
-                  '<a href="policy-history.json" download>policy-history.json</a>；复核或重绘当前这一步，'
-                  '请保存 <a href="policy-workflow.json" download>policy-workflow.json</a>。'
+                  + continuation_guidance(saved)
+                  + '<p>查看<a href="history.html">完整阶段顺序和下一步操作</a>。'
                   '下方的原数值记录仍保留，单独使用它们不能代替完整阶段历史。</p></section>')
         end = text.find("</h1>")
         if end < 0:

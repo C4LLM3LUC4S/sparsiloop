@@ -9,7 +9,17 @@
 1. 在“保存的策略，拿出来再测一次”载入完整策略或历史，也可以点击“使用本页最新的策略与历史”。填新编号后，点击“只测试，不训练”。
 2. 到下方选择与复核区，选“保存的 Q 策略”，再点击“使用本页最新的策略与历史”。定好候选、选择和预留复核编号，只运行选择阶段。
 3. 点击“按原计划复核，不重新选方案”。上方后来改过的条件不会替换原计划。还有待复核计划时，程序会拒绝开始另一项任务。
-4. 想再测或做新计划，就载入本页最新历史。点击“保存完整历史，下次接着做”（计划区是“保存完整历史，做下一个任务”），刷新前也保存完整 ZIP。复核用这一阶段的 `selection-workflow.json`，ZIP 同样保留它。后来又重复复核旧方案时，页面不会把接续按钮退回旧历史；本次重复的原记录仍在它的 ZIP 中。若载入另一条分支，页面会说明没有自动合并。兼容 checkpoint 按需展开：它有合并编号，但没有完整阶段顺序。
+4. 原计划完成后，想再测或做新计划，就载入本页最新历史。点击“保存完整历史，下次接着做”（计划区是“保存完整历史，做下一个任务”），刷新前也保存完整 ZIP。还有待复核计划时，按钮会注明，先完成那一轮复核；不要用兼容 checkpoint 绕过这一步。后来又重复复核旧方案时，页面不会把接续按钮退回旧历史；本次重复的原记录仍在它的 ZIP 中。若载入另一条分支，页面会说明没有自动合并。
+
+先别急着开始新任务，认准原选择记录在哪里：
+
+| 你保存的是 | 复核时载入哪个文件 |
+| --- | --- |
+| 网页的“保存选择记录，下次按原计划复核” | 直接保存的 `selection-workflow.json` |
+| 选择阶段的完整 ZIP，或本地选择输出目录 | 里面的 `policy-workflow.json` |
+| 复核阶段的网页 ZIP，想重复原复核 | 里面保留的 `selection-workflow.json`；当前 `policy-workflow.json` 是复核结果，只用来重绘这一步 |
+
+这张表针对完整阶段历史流程。只有 `policy-history.json` 还不够按原计划复核，它没有代替完整选择结果；请同时保留选择记录和 ZIP。原来的 `selection-bundle.json` / `selection.json` 仍用于各自旧入口，不要拿它们替换完整历史流程的记录。兼容 checkpoint 有 Q 表、训练约定和已知编号，但没有完整阶段顺序；接续时优先用完整历史。
 
 网页单独测试支持 0.2–2 秒，选择与复核支持 0.2–8 秒，均要求 20 ms 步长。策略请求最多 2 MiB、完整复核请求最多 8 MiB，并保留每次最多 20000 个计算区间的限制。如果这一步已经生成结果，但完整历史太大而无法继续，页面会保留结果、历史和下载，提示转到下方本地命令；不要回退旧历史重复使用编号。
 
@@ -36,7 +46,8 @@ python -m event_control_lab.policy_journal test runs/next-choice/policy-workflow
 | 想做什么 | 用哪个文件 |
 | --- | --- |
 | 再单独测一组新编号，或开始新的选择计划 | 最新的 `policy-history.json` |
-| 按刚才的选择复核，或只重绘这一步 | 选择/当前阶段的 `policy-workflow.json` |
+| 按刚才的选择复核 | 选择阶段的 `policy-workflow.json`；网页直接另存时叫 `selection-workflow.json` |
+| 只重绘当前这一步 | 当前阶段的 `policy-workflow.json` |
 | 核对原始数值、失败和轨迹 | 同目录的 JSON、CSV，以及旧格式的数值记录 |
 
 新历史使用 v2 格式，原文件原样放在 `origin` 中；后续事件按这条记录的执行顺序附加。开发编号是“在这时补充的声明”，不表示开发实验就在这个时刻发生。原文件没有的阶段或环境仍然未知，不用当前信息补过去。
@@ -71,6 +82,8 @@ Python 接口是 `evaluate_saved(saved, seeds, config=None)`、`select_plan(spec
 
 ## English
 
-Use `python -m event_control_lab.policy_journal evaluate --policy FILE --seeds NEW_IDS --out NEW_FOLDER`, then `select --policy NEW_HISTORY --spec PLAN --out NEW_FOLDER`, followed by `test POLICY_WORKFLOW --out NEW_FOLDER`. Continue new tasks with the latest `policy-history.json`; repeat or redraw a saved step with its `policy-workflow.json`. The v2 history preserves the original supplied file and appends subsequent declarations, selections, tests and standalone evaluations in order. Declarations are not simulated experiments. Pending plans must be tested before starting another task; unrun tests do not consume their seed numbers. A legacy history ending at selection needs its complete test record to resolve whether tests ran.
+Use `python -m event_control_lab.policy_journal evaluate --policy FILE --seeds NEW_IDS --out NEW_FOLDER`, then `select --policy NEW_HISTORY --spec PLAN --out NEW_FOLDER`, followed by `test POLICY_WORKFLOW --out NEW_FOLDER`. Continue new tasks with the latest `policy-history.json`; repeat a test with the original selection workflow, or redraw a saved step with that step's `policy-workflow.json`. The v2 history preserves the original supplied file and appends subsequent declarations, selections, tests and standalone evaluations in order. Declarations are not simulated experiments. Pending plans must be tested before starting another task; unrun tests do not consume their seed numbers. A legacy history ending at selection needs its complete test record to resolve whether tests ran.
+
+For a pending plan, keep the complete original choice: the web save button calls it `selection-workflow.json`, while a selection ZIP or local output calls it `policy-workflow.json`. A web test ZIP also keeps the original choice as `selection-workflow.json`; its current `policy-workflow.json` is the test result and can only redraw that step. A history file alone cannot replace the complete choice. Finish the pending test before starting a different task; do not flatten history into a compatibility checkpoint to skip a pending stage.
 
 No retraining, exploration or test-based reselection occurs. Standalone tests use seed-based initial states and additional references; planned tests retain the declared fixed initial state and a common message cap. Keep these protocols separate. Original numerical exports, failures and unknown values remain; execution and report-rendering environments are distinct. Existing v1 formats and their source identities are unchanged. In the web interface, use the latest complete policy/history, evaluate with fresh IDs, select a schedule, then test the original saved choice. Save the complete ZIP and latest history before refreshing. The web adapter retains its 20 ms clock, bounded horizons/workload and 2 MiB policy / 8 MiB complete-request limits; completed results and downloads remain available if continuation becomes too large. Flag-less HTTP clients keep their original contracts. Checksums and declared histories do not authenticate provenance, merge unprovided branches, or establish independent testing or stability.
