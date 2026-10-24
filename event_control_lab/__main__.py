@@ -12,6 +12,7 @@ from .study import StudySpec, export_study, study
 from .controller_lab import ControllerLabSpec, controller_lab, export_controller_lab
 from .output_paths import check_new_output
 from .cli_input_errors import read_cli_input, read_cli_json, recursion_failure
+from .export_recovery import ExportRecoveryError
 
 
 def export(result, destination):
@@ -67,7 +68,8 @@ def main():
                 raise ValueError("port must be between 0 and 65535")
             serve(arguments.port)
         elif arguments.command == "evaluate-policy":
-            from .policy import evaluate_policy, export_evaluation, read_checkpoint
+            from .policy import evaluate_policy, read_checkpoint
+            from .evaluation_report import export_evaluation
             from .policy_files import load_standalone_checkpoint
 
             value, digest = read_cli_input(arguments.checkpoint, read_checkpoint)
@@ -106,6 +108,10 @@ def main():
                               "runs": [{"policy": run["policy"], "status": run["status"],
                                         "position_rmse": run["metrics"]["position_rmse"],
                                         "packets": run["packets"]} for run in result["runs"]]}, indent=2))
+    except ExportRecoveryError as exc:
+        parser.exit(130 if exc.interrupted else 2, f"{exc}\n")
+    except KeyboardInterrupt:
+        parser.exit(130, "操作已中断，尚未确认新的完整恢复文件。 / Interrupted before a complete recovery copy was confirmed.\n")
     except RecursionError as exc:
         parser.exit(2, f"SparsiLoop: {recursion_failure(exc)}\n")
     except (ValueError, OSError) as exc:
