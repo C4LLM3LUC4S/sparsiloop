@@ -45,6 +45,16 @@ class JsonInputRecoveryTests(unittest.TestCase):
         self.assertIn("Original error: RecursionError:", error)
         self.assertNotIn("Traceback", error)
 
+    def assert_depth_or_schema_rejection(self, error, original, schema_hint):
+        # Parser nesting limits vary by Python version. Either rejection must stay safe.
+        if "Original error: RecursionError:" in error:
+            self.assert_guidance(error)
+            self.assertIn(str(original), error)
+        else:
+            self.assertIn(schema_hint, error)
+            self.assertNotIn("nested too deeply", error)
+        self.assertNotIn("Traceback", error)
+
     def test_standalone_rejects_real_deep_json_before_training_or_simulation(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -58,8 +68,7 @@ class JsonInputRecoveryTests(unittest.TestCase):
                 status, _, error = self.invoke(cli.main, ["evaluate-policy", str(original),
                     "--seeds", "9001", "--out", str(target)])
             self.assertEqual(status, 2, error)
-            self.assert_guidance(error)
-            self.assertIn(str(original), error)
+            self.assert_depth_or_schema_rejection(error, original, "policy-checkpoint.json")
             self.assertFalse(target.exists())
             self.assertEqual(original.read_bytes(), before)
             self.assertEqual(previous.read_bytes(), b'{"status":"old","unknown":null}\n')
@@ -71,14 +80,15 @@ class JsonInputRecoveryTests(unittest.TestCase):
             root = Path(temporary)
             original = self.fixture(root)
             before = original.read_bytes()
-            for name, function in (("planned", planned_cli.main), ("history", policy_journal_cli.main)):
+            for name, function, schema_hint in (
+                    ("planned", planned_cli.main, "完整的选择记录"),
+                    ("history", policy_journal_cli.main, "完整 policy-workflow.json")):
                 with self.subTest(entry=name), ExitStack() as stack:
                     computes = [stack.enter_context(patch(target)) for target in COMPUTE]
                     target = root / name
                     status, _, error = self.invoke(function, ["render", str(original), "--out", str(target)])
                     self.assertEqual(status, 2, error)
-                    self.assert_guidance(error)
-                    self.assertIn(str(original), error)
+                    self.assert_depth_or_schema_rejection(error, original, schema_hint)
                     self.assertFalse(target.exists())
                     self.assertEqual(original.read_bytes(), before)
                     for compute in computes:
@@ -97,9 +107,39 @@ class JsonInputRecoveryTests(unittest.TestCase):
                 "--seeds", "9001", "--out", str(target)]
             result = subprocess.run(command, cwd=root, capture_output=True, encoding="utf-8", timeout=30)
             self.assertEqual(result.returncode, 2, result.stderr)
-            self.assert_guidance(result.stderr)
-            self.assertIn(str(original), result.stderr)
+            self.assert_depth_or_schema_rejection(result.stderr, original, "policy-checkpoint.json")
             self.assertFalse(target.exists())
+
+    def test_reader_recursion_has_path_original_detail_and_recovery_on_each_cli(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original = root / "original complete input.json"
+            original.write_text("{}\n", encoding="utf-8")
+            before = original.read_bytes()
+            previous = root / "earlier report.json"
+            previous.write_bytes(b'{"status":"old","unknown":null}\n')
+            cases = (("standalone", cli.main, "event_control_lab.policy.read_checkpoint",
+                      ["evaluate-policy", str(original), "--seeds", "9001"]),
+                     ("planned", planned_cli.main, "event_control_lab.planned_cli.read_json",
+                      ["render", str(original)]),
+                     ("history", policy_journal_cli.main, "event_control_lab.policy_journal_cli.read_json",
+                      ["render", str(original)]))
+            for name, function, reader, arguments in cases:
+                with self.subTest(entry=name), ExitStack() as stack:
+                    read = stack.enter_context(patch(reader, side_effect=RecursionError("controlled reader detail")))
+                    computes = [stack.enter_context(patch(target)) for target in COMPUTE]
+                    target = root / name
+                    status, _, error = self.invoke(function, [*arguments, "--out", str(target)])
+                    self.assertEqual(status, 2, error)
+                    read.assert_called_once()
+                    self.assert_guidance(error)
+                    self.assertIn(str(original), error)
+                    self.assertIn("controlled reader detail", error)
+                    self.assertFalse(target.exists())
+                    self.assertEqual(original.read_bytes(), before)
+                    self.assertEqual(previous.read_bytes(), b'{"status":"old","unknown":null}\n')
+                    for compute in computes:
+                        compute.assert_not_called()
 
     def test_compute_recursion_after_valid_input_does_not_blame_json(self):
         with tempfile.TemporaryDirectory() as temporary:
