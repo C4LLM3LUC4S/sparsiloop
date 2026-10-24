@@ -1,0 +1,14 @@
+{
+  "config": {
+    "plant": "scalar", "duration": 1.2, "dt": 0.02, "input_limit": 4.0,
+    "initial_position": 1.0, "budget": 12, "heartbeat": 0.2,
+    "delay_steps": 2, "loss_probability": 0.05,
+    "measurement_noise": 0.005, "process_noise": 0.01
+  },
+  "absolute_thresholds": [0.02, 0.06, 0.12, 0.24],
+  "relative_thresholds": [0.05, 0.15, 0.3],
+  "selection_seeds": [11001, 11002, 11003],
+  "test_seeds": [12001, 12002, 12003],
+  "previously_used_seeds": [],
+  "rmse_limit": 1.0
+}

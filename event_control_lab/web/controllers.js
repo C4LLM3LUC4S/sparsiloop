@@ -164,6 +164,7 @@
    if(file.size > 2*1024*1024)throw Error("文件超过网页的 2 MiB 限制，请用命令行加载");
    const value=JSON.parse(await file.text());
    if(version!==fileVersion)return;
+   if(value?.format==="sparsiloop-policy-history-v2")throw Error("这份文件保留了跨流程的完整历史，请用本地命令 python -m event_control_lab.policy_journal evaluate 继续。网页暂不接收新格式；请保留原文件，不要删字段改格式");
    if(value?.format==="sparsiloop-planned-policy-history-v1")throw Error("这是选择/复核用的完整历史。继续原计划请回到下方复核入口；要单独测试，请在原结果中展开“想换一组随机初态再测？”，载入或另存 policy-checkpoint.json，完整 ZIP 中也有。请保留原历史文件；这里会按种子生成初态并增加对照");
    if(value?.format!=="sparsiloop-frozen-policy-v1")throw Error("请选择完整的 policy-checkpoint.json，旧的原始 Q 表不够");
    describeLoadedPolicy(value,`已选择 ${file.name}。运行前还会检查参数、来源摘要和种子。`);

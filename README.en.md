@@ -1,22 +1,25 @@
 # SparsiLoop · Event-triggered control lab
 
-Already trained a scalar Q policy? [Choose a communication schedule with the saved policy](docs/planned-policy.md) in the local web form or CLI, then test the fixed choice without retraining. Reuse the preceding web training result or load a full checkpoint/history. The policy and known seed history travel with the records so a later plan can reject reuse.
-
-Need to choose a communication threshold before inspecting test outcomes? Open the local web page, follow “先选发送方案，再复核”, and configure, save and test a choice without switching to a terminal. The [planned selection workflow](docs/planned-study.md) also supports separate CLI commands. Both paths save every candidate and failure, then test only the declared seeds without reselection. The web path uses built-in plants with fixed feedback or a saved scalar Q policy, a 20 ms step, 0.2–8 seconds, at most 20,000 potential intervals and 8 MiB complete requests. Policy input files remain limited to 2 MiB.
-
-Save a selection/test bundle to carry minimal execution-environment information to another machine. Reports separate selection, testing and report rendering; missing facts in old records stay unknown. The `render` command redraws saved results without rerunning seeds. See the [environment and redraw guide](docs/planned-study.md#换一台电脑时先看环境记录).
-
-Have your own model? The [local-model planned workflow](docs/planned-models.md) reuses the same explicit adapter, saves its parameters, units and declared source, and requires a matching model for later testing. The browser does not upload or execute model code.
-
 **What happens to control error when you send fewer sensor messages?**
 
-Try it on your computer: set a message limit, delay and loss probability, then compare regular sending with sending when measurements change. See where errors grow, check which messages arrived and save the results for analysis. The teaching models give you a starting point; a Python adapter lets you bring your own model.
+Try it on your computer: set a message limit, delay and loss probability, then compare regular sending with sending when measurements change. See where errors grow, check which messages arrived and save the results for analysis. The teaching models give you a starting point; a local Python adapter lets you bring your own model.
 
-[中文](README.md) · [Protocol](docs/protocol.md) · [Post-hoc traffic study](docs/traffic-study.md) · [Grid check](docs/grid-check.md)
+[中文](README.md) · [Start here](START_HERE.md) · [Protocol](docs/protocol.md)
 
-Integrating an existing controller? The [pinned simple-pid recipe](docs/simple-pid.md) uses a simulation clock, received-observation gaps and fresh PID state, then exports provenance and every P/I/D update. Its optional dependency is separate from the standard-library core.
+**Version 0.0.1: public development prototype, no versioned release assets yet.** It provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
 
-**Version 0.0.1: public development prototype, no versioned release assets yet.** It currently has two normalized teaching plants, three sensor-to-controller schedules and a fixed linear controller, plus separate learning recipes. It does not establish stability, hardware safety, paper reproduction or independent adoption.
+## Start with your task
+
+| What you want to do | Where to start |
+| --- | --- |
+| Explore the effect of fewer messages | Run `python quickstart.py` and compare error with actual attempted messages |
+| Choose a schedule before inspecting test outcomes | [Planned selection](docs/planned-study.md), in the web lab or CLI; keep all candidates and failures, without test-based reselection |
+| Reuse a trained scalar Q policy | [Frozen-policy workflow](docs/planned-policy.md), using a complete saved file or the preceding web result; no retraining |
+| Continue across standalone evaluations and later plans | [Chronological history](docs/policy-history.md), currently local CLI/Python; keep the supplied origin and subsequent phases |
+| Bring your own plant | [Local-model workflow](docs/planned-models.md), retaining explicit parameters, units and source; no browser upload of Python code |
+| Repeat on another machine or redraw old results | [Environment and redraw guide](docs/planned-study.md#换一台电脑时先看环境记录); missing old facts stay unknown |
+
+Integrating an existing PID controller? The [pinned simple-pid recipe](docs/simple-pid.md) uses a simulation clock, received-observation gaps and fresh PID state, then exports provenance and each P/I/D update. Its optional dependency is separate from the standard-library core. [Post-hoc traffic study](docs/traffic-study.md) and [grid check](docs/grid-check.md) describe the other comparison protocols.
 
 ## Run locally
 

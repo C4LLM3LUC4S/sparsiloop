@@ -35,6 +35,7 @@ from event_control_lab.policy import checkpoint, evaluate_policy
 from event_control_lab.planned_study import PlannedSpec, select_schedule, test_schedule
 from event_control_lab.web_planned import default_specification as planned_default
 from event_control_lab.planned_context import as_bundle, select_with_context, test_with_context, validate_context
+from event_control_lab.policy_journal import evaluate_saved, select_plan, test_plan, load_workflow
 
 config = Config(duration=0.8, budget=4, heartbeat=0.2, measurement_noise=0,
                 process_noise=0, loss_probability=0)
@@ -81,6 +82,17 @@ frozen_test = test_with_context(frozen_choice)
 assert frozen_test["context"]["selection"] == frozen_choice["context"]["selection"]
 assert [row["phase"] for row in frozen_test["result"]["policy_after"]["planned_history"]] == ["selection", "test"]
 assert frozen_test["result"]["policy_after"]["declared_development_seeds"] == [7001]
+journal_origin = frozen_test["result"]["policy_after"]
+journal_spec = replace(frozen_spec, selection_seeds=(13001,), test_seeds=(14001,), previously_used_seeds=(15001,))
+journal_evaluation = evaluate_saved(journal_origin, [9001])
+journal_choice = select_plan(journal_spec, journal_evaluation["history_after"])
+journal_test = test_plan(journal_choice)
+for saved_workflow in (journal_evaluation, journal_choice, journal_test):
+    load_workflow(saved_workflow)
+journal_history = {key:value for key,value in journal_test["history_after"].items()
+                   if key not in ("events", "history_sha256")}
+journal_history["events"] = [{key:value for key,value in event.items() if key != "runtime"}
+                             for event in journal_test["history_after"]["events"]]
 
 class QuietHandler(Handler):
     def log_message(self, *args):
@@ -182,6 +194,9 @@ print(json.dumps({
     "planned_selection": planned_selection, "planned_test": planned_test,
     "custom_planned": {"selection": model_choice["result"], "test": model_test["result"]},
     "frozen_planned": {"selection": frozen_choice["result"], "test": frozen_test["result"]},
+    "policy_journal": {"origin": journal_origin, "spec": asdict(journal_spec),
+                       "evaluation": journal_evaluation["data"], "selection": journal_choice["data"]["result"],
+                       "test": journal_test["data"]["result"], "history": journal_history},
     "custom_model": {"compare": custom_compare, "study": custom_study, "controller_lab": custom_learning},
     "installed_http_api_matches_direct_calls": api_checks,
     "installed_web_frozen_planned": frozen_web_checks,
@@ -254,7 +269,7 @@ def main():
             raise ValueError("unexpected runtime dependency")
         if installed["distribution"] != "sparsiloop" or installed["runtime_dependencies"] is None:
             raise ValueError("installed distribution metadata is missing or misnamed")
-        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "custom_model", "planned_selection", "planned_test", "custom_planned", "frozen_planned"):
+        for key in ("version", "static_sha256", "compare", "study", "grid_check", "controller_lab", "custom_model", "planned_selection", "planned_test", "custom_planned", "frozen_planned", "policy_journal"):
             if installed[key] != source[key]:
                 raise ValueError(f"installed/source mismatch: {key}")
         for command in ("sparsiloop", "event-control-lab"):
@@ -320,6 +335,26 @@ def main():
             raise ValueError("frozen test modified its original choice")
         if not (frozen_test / "policy-history.json").is_file():
             raise ValueError("frozen test omitted the continuation history")
+        journal_input, journal_spec = base / "journal origin.json", base / "journal spec.json"
+        journal_input.write_text(json.dumps(installed["policy_journal"]["origin"]), encoding="utf-8")
+        journal_spec.write_text(json.dumps(installed["policy_journal"]["spec"]), encoding="utf-8")
+        journal_outputs = [base / name for name in ("journal evaluation", "journal choice", "journal test", "journal redraw")]
+        journal_commands = [
+            ["evaluate", "--policy", str(journal_input), "--seeds", "9001"],
+            ["select", "--policy", str(journal_outputs[0]/"policy-history.json"), "--spec", str(journal_spec)],
+            ["test", str(journal_outputs[1]/"policy-workflow.json")],
+            ["render", str(journal_outputs[2]/"policy-workflow.json")],
+        ]
+        for index, (command, output) in enumerate(zip(journal_commands, journal_outputs)):
+            run([str(python), "-I", "-m", "event_control_lab.policy_journal", *command, "--out", str(output)],
+                base, logs, "installed-journal-" + str(index))
+        for output, filename, phase in zip(journal_outputs,
+                ("evaluation.json", "selection.json", "test.json"), ("evaluation", "selection", "test")):
+            if json.loads((output/filename).read_bytes()) != installed["policy_journal"][phase]:
+                raise ValueError("journal CLI differs from installed API: " + phase)
+        if ((journal_outputs[2]/"policy-workflow.json").read_bytes()
+                != (journal_outputs[3]/"policy-workflow.json").read_bytes()):
+            raise ValueError("journal redraw changed the original complete workflow")
         extracted = extract_source(archive, base / "fresh source")
         for path in ("README.md", "README.en.md", "BRANDING.md", "START_HERE.md", "quickstart.py", "docs/grid-check.md",
                      "examples/grid-check.json", "examples/own_model_case.py", "docs/own-model.md", "scripts/check_distribution.py", "docs/planned-study.md",
@@ -327,7 +362,9 @@ def main():
                      "event_control_lab/planned_report.py", "event_control_lab/planned_cli.py",
                      "event_control_lab/planned_context.py", "event_control_lab/planned_models.py",
                      "examples/planned_model_case.py", "docs/planned-models.md",
-                     "event_control_lab/planned_policy.py", "docs/planned-policy.md", "examples/planned-frozen-policy.json"):
+                     "event_control_lab/planned_policy.py", "docs/planned-policy.md", "examples/planned-frozen-policy.json",
+                     "event_control_lab/policy_journal.py", "event_control_lab/policy_journal_report.py",
+                     "event_control_lab/policy_journal_cli.py", "docs/policy-history.md", "examples/continued-policy-plan.json"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
                 raise ValueError(f"source distribution omitted or changed {path}")
         extracted_origin = run([str(python), "-c", "import event_control_lab; print(event_control_lab.__file__)"],
@@ -378,6 +415,7 @@ def main():
             "extracted_local_model_separate_selection_and_test": True,
             "installed_frozen_policy_planned_cli_api_parity": True,
             "frozen_policy_history_and_original_choice_preserved": True,
+            "installed_chronological_policy_api_cli_and_redraw": True,
             "installed_web_frozen_planned": installed["installed_web_frozen_planned"],
             "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],

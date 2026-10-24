@@ -14,6 +14,8 @@ HISTORY_RECOVERY = (
 
 
 def load_standalone_checkpoint(value):
+    if isinstance(value, dict) and value.get("format") == "sparsiloop-policy-history-v2":
+        raise ValueError("这份文件保留了跨流程的完整历史，请使用本地接续命令 python -m event_control_lab.policy_journal evaluate --policy 文件 --seeds 新编号 --out 新目录。网页暂不接收这种格式，请保留完整历史，不要删字段改成旧格式。")
     if isinstance(value, dict) and value.get("format") == planned_policy.HISTORY_FORMAT:
         planned_policy.history_for(value)
         raise ValueError(HISTORY_RECOVERY)

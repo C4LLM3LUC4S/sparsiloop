@@ -62,6 +62,8 @@ def select_from_web(value):
     spec = PlannedSpec.from_dict(value["spec"])
     web_spec(spec)
     policy = value.get("policy_checkpoint")
+    if isinstance(policy, dict) and policy.get("format") == "sparsiloop-policy-history-v2":
+        raise ValueError("这份完整接续历史请用本地命令 python -m event_control_lab.policy_journal select 继续；网页暂不接收这个新格式，请保留原文件。")
     if "policy_checkpoint" in value and not isinstance(policy, dict):
         raise ValueError("请载入完整策略或策略历史，空值不能代替策略，也不会改用线性反馈。")
     if policy is not None and len(json.dumps(policy, ensure_ascii=False).encode()) > 2 * 1024 * 1024:
@@ -72,6 +74,8 @@ def select_from_web(value):
 def test_from_web(value):
     if not isinstance(value, dict) or set(value) != {"selection"}:
         raise ValueError("复核只接收完整选择记录，不能临时换门槛、参数或测试种子。")
+    if isinstance(value["selection"], dict) and value["selection"].get("format") == "sparsiloop-policy-workflow-v1":
+        raise ValueError("这份完整接续记录请用本地命令 python -m event_control_lab.policy_journal test 复核；网页暂不接收这个新格式，请保留原文件。")
     saved = as_bundle(value["selection"])
     if saved["context"]["phase"] != "selection":
         raise ValueError("请载入选择记录，不能用测试记录代替。")
