@@ -173,6 +173,49 @@ def footer(record=None):
 <details><summary>English overview</summary><p>A fixed controller selects a schedule using only declared selection seeds and a predeclared rule. A separate command loads the saved selection and evaluates only the declared test seeds with a fixed-cap periodic reference. All failures and raw trajectories remain. This is not a preregistration, independence or stability certificate.</p></details></section>'''
 
 
+def selection_run_details(record):
+    limit = record["spec"]["rmse_limit"]
+    metric_name = "首个状态 RMSE" if record.get("model") else "位置 RMSE"
+    body = '<section id="selection-run-evidence"><h2>是哪次运行没满足要求？</h2><p>展开候选，就能按编号找到原因。这里解释已保存的选择结果，不重新计算或改选。</p>'
+    for candidate in record["selection_summaries"]:
+        rows = []
+        counts = {"未完整结束": 0, "无法判断": 0, "误差超标": 0, "达标": 0}
+        for entry in record["selection_runs"]:
+            if entry["candidate_id"] != candidate["id"]:
+                continue
+            run = entry["run"]
+            value = run["metrics"]["position_rmse"]
+            if run["status"] != "complete":
+                verdict = "未完整结束"
+                reason = "先检查运行状态和原始原因；短运行的消息数不代表完成整个任务的开销。"
+            elif type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                verdict = "无法判断"
+                reason = "没有可用的误差值，不能当作零或达标。"
+            elif value > limit:
+                verdict = "误差超标"
+                reason = f"这次完整时段的 RMSE 超过原先声明的上限 {limit}。若继续调参，请另存方案和已用编号。"
+            else:
+                verdict = "达标"
+                reason = "只说明这次运行满足声明的完整时段误差要求。"
+            counts[verdict] += 1
+            status = {"complete": "完整结束", "state_limit": "超过状态上限",
+                      "controller_error": "控制器出错", "plant_error": "模型出错"}.get(run["status"], run["status"])
+            rows.append([entry["seed"], status, None if value is None else str(value), verdict,
+                         run["packets"]["attempted"], run["error"] or reason])
+        problems = sum(counts[key] for key in ("未完整结束", "无法判断", "误差超标"))
+        description = (f"{problems} 次未满足要求" if problems else
+                       f"{len(rows)} 次都完整结束且达标" if rows else "没有保存对应的运行明细")
+        body += '<details><summary>' + html.escape(label(candidate) + "：" + description) + '</summary>'
+        body += '<p>' + html.escape("；".join(f"{key} {count} 次" for key, count in counts.items())) + '。</p>'
+        shown_rows = sorted(rows, key=lambda row: row[3] == "达标")[:20]
+        body += '<p>先列未满足要求的运行。表内误差保留完整数值；上限约束的是完整时段 RMSE，不是瞬时最大偏差。</p>'
+        if len(rows) > 20:
+            body += f'<p>这里只显示 {len(shown_rows)} / {len(rows)} 次；其余编号和结果请看 <a href="runs.csv" download>完整 CSV</a> 或 <a href="selection.json" download>原始 JSON</a>。</p>'
+        body += table(["选择编号", "运行情况", metric_name, "这次是否满足要求", "尝试发送", "说明"], shown_rows)
+        body += '</details>'
+    return body + '</section>'
+
+
 def policy_section(record, continuation=None):
     if "policy_before" not in record:
         return ""
@@ -242,6 +285,7 @@ def export_selection(record, destination, input_hash=None, *, environment=None):
              row["all_runs_mean_rmse"], row["all_requested_mean_attempts"],
              "按规则选定" if row["id"] == record["selected_id"] else ("满足条件" if row["eligible"] else "未满足要求")] for row in summaries]
     body += "<section><h2>所有候选都在这里</h2>" + table(["候选", "完整运行", "各次 RMSE 的最大值", "平均 RMSE", "平均尝试发送", "选择情况"], rows) + "<p>提前失败的尝试数只统计停下之前发了多少条，不能当作完成整个任务的通信开销。</p></section>"
+    body += selection_run_details(record)
     body += '<section><h2>下一步怎么做？</h2>'
     if chosen:
         if "policy_before" in record:
