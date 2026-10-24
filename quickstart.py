@@ -41,10 +41,13 @@ def main():
     try:
         if args.mode == "controllers":
             from event_control_lab.controller_lab import controller_lab, export_controller_lab
+            from event_control_lab.output_paths import check_new_output
             label = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
-            output = args.out.resolve() if args.out else root / "runs" / ("controllers-" + label)
+            output = args.out if args.out else root / "runs" / ("controllers-" + label)
             if output.exists():
                 parser.error("输出文件夹已存在，请换一个新文件夹；旧报告会保留。 / Output already exists; choose a new folder")
+            check_new_output(output)
+            output = output.resolve()
             export_controller_lab(controller_lab(method=args.method), output)
             report = (output / "report.html").resolve()
             print("报告已保存，打开这个文件即可查看 / Report: " + str(report), flush=True)

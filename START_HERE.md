@@ -74,7 +74,7 @@ python quickstart.py --mode controllers
 - 终端说找不到 `quickstart.py`：确认已经完整解压，并进入包含这个文件的项目文件夹。
 - 浏览器没有自动打开：复制终端打印的本地网址，或手动打开报告文件。
 - 网页提示连接失败：确认启动它的终端仍在运行，再刷新页面。停止程序后，网页不能继续计算。
-- 输出路径已存在：命令行会在计算前停下，不会重新运行仿真。用 `--out` 换一个新目录再试，旧报告会保留。
+- 输出路径已存在，或上级路径不是文件夹：命令行会在计算前停下。用 `--out` 换一个保存位置再试，旧文件和报告会保留。
 - 某次仿真没有跑完：打开报告查看停止时间和错误原因。报告生成成功，不代表其中每次仿真都成功。
 
 ## English
@@ -87,4 +87,4 @@ Before closing the page, save the full report ZIP. For the first policy test, ke
 
 For static learning reports, run `python quickstart.py --mode controllers`; `--no-open` disables browser opening and every report uses a new directory. To use your own model, follow [the model guide](docs/own-model.md). The source entry runs without installing the package; regular package installation is `python -m pip install .`.
 
-If a command's output path already exists, it stops before starting a new experiment. Choose a new `--out` directory and retry; existing results stay unchanged.
+If a command's output path already exists or a parent path is a file, it stops before starting a new experiment. Choose a new `--out` directory under a folder and retry; existing files and results stay unchanged.

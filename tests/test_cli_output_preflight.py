@@ -5,6 +5,7 @@ from dataclasses import asdict
 import io
 import json
 from pathlib import Path
+import runpy
 import sys
 import tempfile
 import unittest
@@ -60,6 +61,44 @@ class OutputPreflightTests(unittest.TestCase):
                         self.assertEqual(original.read_bytes(), before)
                         compute.assert_not_called()
                         self.assertIn("choose a new --out", error)
+
+    def test_file_parent_rejects_before_compute_at_each_depth(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for command, arguments in self.inputs(root):
+                parent = root / (command + " parent file")
+                parent.write_bytes(b"keep the original parent file")
+                for parts in (("new result",), ("missing", "new result")):
+                    with self.subTest(command=command, depth=len(parts)):
+                        destination = parent.joinpath(*parts)
+                        compute_name = {"grid-check": "grid_check"}.get(command, command)
+                        with patch.object(cli, compute_name, wraps=getattr(cli, compute_name)) as compute:
+                            status, _, error = self.invoke([*arguments, "--out", str(destination)])
+                        self.assertEqual(status, 2, error)
+                        self.assertEqual(parent.read_bytes(), b"keep the original parent file")
+                        compute.assert_not_called()
+                        self.assertIn("--out", error)
+
+    def test_source_launcher_checks_parent_before_controller_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory) / "parent file"
+            parent.write_bytes(b"keep this file")
+            for parts in (("new report",), ("..", "new report")):
+                with self.subTest(parts=parts):
+                    stdout, stderr = io.StringIO(), io.StringIO()
+                    arguments = ["quickstart.py", "--mode", "controllers", "--method", "ilc",
+                                 "--no-open", "--out", str(parent.joinpath(*parts))]
+                    with patch.object(sys, "argv", arguments), patch.object(sys, "path", list(sys.path)), \
+                            redirect_stdout(stdout), redirect_stderr(stderr), \
+                            patch("event_control_lab.controller_lab.controller_lab",
+                                  side_effect=AssertionError("invalid output must not run controllers")) as compute:
+                        with self.assertRaises(SystemExit) as refused:
+                            runpy.run_path(str(Path(__file__).resolve().parents[1] / "quickstart.py"),
+                                           run_name="__main__")
+                    self.assertEqual(refused.exception.code, 2)
+                    compute.assert_not_called()
+                    self.assertIn("--out", stderr.getvalue())
+                    self.assertEqual(parent.read_bytes(), b"keep this file")
 
     def test_new_output_still_exports_the_original_numerical_result(self):
         with tempfile.TemporaryDirectory() as directory:
