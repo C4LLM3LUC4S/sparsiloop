@@ -3,7 +3,7 @@ from http.server import ThreadingHTTPServer
 import json
 from threading import Event, Lock, Thread
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from event_control_lab.server import Handler, LocalServer, MAX_CONNECTIONS
 
@@ -65,7 +65,32 @@ class ComputeAdmissionTests(unittest.TestCase):
 
 
 class ConnectionAdmissionTests(unittest.TestCase):
-    def test_worker_limit_returns_503_and_recovers_without_restarting(self):
+    def test_full_server_attempts_503_and_closes_even_if_the_client_disconnects(self):
+        for failure in (None, ConnectionAbortedError("client disconnected")):
+            with self.subTest(send_failure=failure):
+                server = LocalServer(("127.0.0.1", 0), Quiet)
+                connection = Mock()
+                connection.sendall.side_effect = failure
+                try:
+                    for _ in range(MAX_CONNECTIONS):
+                        self.assertTrue(server.connection_slots.acquire(blocking=False))
+                    with patch.object(ThreadingHTTPServer, "process_request") as start_worker, \
+                            patch.object(server, "shutdown_request") as close:
+                        server.process_request(connection, ("127.0.0.1", 1))
+                    start_worker.assert_not_called()
+                    close.assert_called_once_with(connection)
+                    connection.settimeout.assert_called_once_with(0.25)
+                    connection.sendall.assert_called_once()
+                    header, payload = connection.sendall.call_args.args[0].split(b"\r\n\r\n", 1)
+                    self.assertTrue(header.startswith(b"HTTP/1.0 503 Service Unavailable\r\n"))
+                    self.assertIn(b"Retry-After: 1\r\n", header)
+                    self.assertIn(f"Content-Length: {len(payload)}".encode(), header)
+                    self.assertIn("error", json.loads(payload))
+                    self.assertFalse(server.connection_slots.acquire(blocking=False))
+                finally:
+                    server.server_close()
+
+    def test_worker_limit_rejects_overload_and_recovers_without_restarting(self):
         entered, release, lock = Event(), Event(), Lock()
         active = 0
         peak = 0
@@ -106,10 +131,16 @@ class ConnectionAdmissionTests(unittest.TestCase):
             for worker in workers:
                 worker.start()
             self.assertTrue(entered.wait(5))
-            status, retry, body = request()
-            self.assertEqual(status, 503)
-            self.assertEqual(retry, "1")
-            self.assertIn("error", body)
+            # An early close with unread request bytes can reset the client on
+            # Windows. Both outcomes reject work; 503 is best-effort guidance.
+            try:
+                status, retry, body = request()
+            except ConnectionError:
+                pass
+            else:
+                self.assertEqual(status, 503)
+                self.assertEqual(retry, "1")
+                self.assertIn("error", body)
             self.assertEqual(peak, MAX_CONNECTIONS)
             release.set()
             for worker in workers:

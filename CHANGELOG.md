@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Check connection saturation against the documented rejection contract: a best-effort 503 or a connection reset, followed by recovery. Separately verify the exact 503 response, cleanup on disconnect and unchanged worker cap; no server behavior or limits change.
 - Share computation admission across all six web experiment routes before reading/decoding the body; reject busy requests with retry guidance while retaining normal GET access.
 - Bound the default source launcher and CLI server to eight active connection handlers with read timeouts and overload rejection. Preserve numerical source/record identities, localhost/origin validation and existing request/workload limits.
 - Document task-based acceptance and local growth limits, and add a small-reproduction issue form without private data. These bounds are not multi-user throughput or real-world effectiveness evidence.
