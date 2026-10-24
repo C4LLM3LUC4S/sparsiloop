@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.0a3 — 2026-10-24
 
-No changes yet.
+- Check existing output and invalid parent paths before loading saved inputs or starting computation across local entry points; preserve previous reports and give a fresh-path retry.
+- Retain a complete typed local planned/history record before rendering. After a late I/O failure or interruption, keep it and print a command using the same Python to redraw without training, selection or testing. Preserve the Q table, conditions, known IDs and original execution context. Initial recovery-write failure does not promise a complete copy; temporary web ZIP exports opt out of this local recovery.
+- Recover release lookup through the official GraphQL release identity when the REST list omits a draft. Bound post-create/upload retries, validate repository/tag/source, and preserve drafts rather than recreating or replacing assets.
+- Ship matching source, natural recovery guidance and checksums. Keep all earlier releases and numerical/history identities unchanged.
 
 ## 0.1.0a2 — 2026-10-24
 

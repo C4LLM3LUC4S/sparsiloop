@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+import time
 
 
 REPOSITORY = "C4LLM3LUC4S/sparsiloop"
@@ -21,7 +22,41 @@ def find_release(tag):
     matches = [release for release in releases if release["tag_name"] == tag]
     if len(matches) > 1:
         raise ValueError("Multiple releases use this tag")
-    return matches[0] if matches else None
+    if matches:
+        return matches[0]
+    # Pending draft tags are resolved through GraphQL by the official gh CLI too.
+    owner, name = REPOSITORY.split("/")
+    query = """query($owner:String!,$name:String!,$tag:String!){
+      repository(owner:$owner,name:$name){release(tagName:$tag){databaseId}}
+    }"""
+    response = json.loads(gh("api", "graphql", "-f", "query=" + query,
+                             "-f", "owner=" + owner, "-f", "name=" + name,
+                             "-f", "tag=" + tag).stdout)
+    if response.get("errors") or (response.get("data") or {}).get("repository") is None:
+        raise ValueError("Could not resolve the release identity through GraphQL")
+    pending = response["data"]["repository"]["release"]
+    if pending is None:
+        return None
+    release_id = pending["databaseId"]
+    if type(release_id) is not int or release_id <= 0:
+        raise ValueError("Unexpected release database identity")
+    release = json.loads(gh("api", f"repos/{REPOSITORY}/releases/{release_id}").stdout)
+    if (release.get("id") != release_id or release.get("tag_name") != tag
+            or release.get("url") != f"https://api.github.com/repos/{REPOSITORY}/releases/{release_id}"):
+        raise ValueError("Resolved release identity differs from the requested repository/tag")
+    return release
+
+
+def wait_release(tag, commit):
+    for delay in (0, 1, 2, 4):
+        if delay:
+            time.sleep(delay)
+        release = find_release(tag)
+        if release is not None:
+            if release.get("target_commitish") != commit:
+                raise ValueError("Resolved release source changed; preserve the existing draft")
+            return release
+    raise ValueError("Release is still unreadable; preserve the existing draft and inspect it before retrying")
 
 
 def publish(assets, notes, allow_publish=False):
@@ -82,12 +117,12 @@ def publish(assets, notes, allow_publish=False):
             if any(marker in version for marker in ("a", "b", "rc")):
                 arguments.append("--prerelease")
             gh(*arguments, *(str(assets / name) for name in sorted(expected)))
-        release = find_release(tag)
+        release = wait_release(tag, commit)
     actual = {asset["name"] for asset in release["assets"]}
     if release["draft"] and actual < set(expected):
         gh("release", "upload", tag, "--repo", REPOSITORY,
            *(str(assets / name) for name in sorted(set(expected) - actual)))
-        release = find_release(tag)
+        release = wait_release(tag, commit)
     if {asset["name"] for asset in release["assets"]} != set(expected):
         raise ValueError("Remote asset names differ; release left unchanged")
     with tempfile.TemporaryDirectory(prefix="sparsiloop-release-download-") as temporary:
