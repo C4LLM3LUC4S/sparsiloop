@@ -11,6 +11,7 @@ from .policy_journal import evaluate_saved, load_workflow, select_plan, test_pla
 from .policy_journal_report import export_workflow
 from .export_recovery import ExportRecoveryError
 from .output_paths import check_new_output
+from .cli_input_errors import read_cli_input, recursion_failure
 
 
 def main(argv=None):
@@ -38,15 +39,15 @@ def main(argv=None):
         check_new_output(target)
         target = target.resolve()
         if args.command in ("evaluate", "select"):
-            value, input_hash = read_checkpoint(args.policy)
+            value, input_hash = read_cli_input(args.policy, read_checkpoint)
             if args.command == "evaluate":
                 seeds = [int(part.strip()) for part in args.seeds.split(",")]
-                config = Config.from_dict(read_json(args.config)[0]) if args.config else None
+                config = Config.from_dict(read_cli_input(args.config, read_json)[0]) if args.config else None
                 result = evaluate_saved(value, seeds, config)
             else:
-                result = select_plan(PlannedSpec.from_dict(read_json(args.spec)[0]), value)
+                result = select_plan(PlannedSpec.from_dict(read_cli_input(args.spec, read_json)[0]), value)
         else:
-            value, input_hash = read_json(args.record)
+            value, input_hash = read_cli_input(args.record, read_json)
             result = test_plan(value) if args.command == "test" else load_workflow(value)
         export_workflow(result, target, input_hash)
         if args.command == "render":
@@ -70,7 +71,10 @@ def main(argv=None):
     except KeyboardInterrupt:
         print("任务已中断，尚未生成新的完整报告或确认可恢复的记录。 / Interrupted before a complete recovery record was confirmed.", file=sys.stderr)
         return 130
-    except (ValueError, OSError, UnicodeError, RecursionError) as exc:
+    except RecursionError as exc:
+        print(recursion_failure(exc), file=sys.stderr)
+        return 2
+    except (ValueError, OSError, UnicodeError) as exc:
         print(f"没有生成新的完整报告：{exc}", file=sys.stderr)
         return 2
     except (KeyError, TypeError, IndexError, AttributeError) as exc:
