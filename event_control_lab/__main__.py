@@ -10,6 +10,7 @@ from .grid import GridSpec, export_grid_check, grid_check
 from .server import serve
 from .study import StudySpec, export_study, study
 from .controller_lab import ControllerLabSpec, controller_lab, export_controller_lab
+from .output_paths import check_new_output
 
 
 def export(result, destination):
@@ -58,11 +59,8 @@ def main():
     policy.add_argument("--out", type=Path, required=True)
     arguments = parser.parse_args()
     try:
-        if arguments.command != "serve" and (arguments.out.exists() or arguments.out.is_symlink()):
-            raise ValueError(
-                "输出路径已存在，这次没有开始计算；请换一个新目录，旧结果会保留。 / "
-                "output directory already exists; choose a new --out path"
-            )
+        if arguments.command != "serve":
+            check_new_output(arguments.out)
         if arguments.command == "serve":
             if not 0 <= arguments.port <= 65535:
                 raise ValueError("port must be between 0 and 65535")
