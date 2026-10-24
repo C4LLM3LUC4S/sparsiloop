@@ -15,7 +15,7 @@ Try it on your computer: set a message limit, delay and loss probability, then c
 | Explore the effect of fewer messages | Run `python quickstart.py` and compare error with actual attempted messages |
 | Choose a schedule before inspecting test outcomes | [Planned selection](docs/planned-study.md), in the web lab or CLI; keep all candidates and failures, without test-based reselection |
 | Reuse a trained scalar Q policy | [Frozen-policy workflow](docs/planned-policy.md), using a complete saved file or the preceding web result; no retraining |
-| Continue across standalone evaluations and later plans | [Chronological history](docs/policy-history.md), currently local CLI/Python; keep the supplied origin and subsequent phases |
+| Continue across standalone evaluations and later plans | [Chronological history](docs/policy-history.md) in the web interface or local CLI/Python; retain the supplied origin and subsequent phases |
 | Bring your own plant | [Local-model workflow](docs/planned-models.md), retaining explicit parameters, units and source; no browser upload of Python code |
 | Repeat on another machine or redraw old results | [Environment and redraw guide](docs/planned-study.md#换一台电脑时先看环境记录); missing old facts stay unknown |
 

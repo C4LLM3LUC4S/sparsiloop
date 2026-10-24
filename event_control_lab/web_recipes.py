@@ -94,8 +94,13 @@ def run_recipes(value):
 
 
 def test_saved_policy(value):
-    if not isinstance(value, dict) or set(value) - {"checkpoint", "seeds", "config"} or "checkpoint" not in value:
+    if not isinstance(value, dict) or set(value) - {"checkpoint", "seeds", "config", "keep_history"} or "checkpoint" not in value:
         raise ValueError("请选择完整的 policy-checkpoint.json，并填写新的测试种子。")
+    if "keep_history" in value and type(value["keep_history"]) is not bool:
+        raise ValueError("完整历史选项格式不正确，请使用原网页或本地接续命令。")
+    if value.get("keep_history"):
+        from .web_journal import evaluate_from_web
+        return evaluate_from_web(value)
     _, _, base = load_standalone_checkpoint(value["checkpoint"])
     if value.get("config") is not None:
         base = Config.from_dict(value["config"])

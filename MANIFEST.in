@@ -4,5 +4,6 @@ recursive-include docs *.md
 recursive-include examples *.json *.py *.txt
 recursive-include integration_tests *.py
 recursive-include tests *.py
+recursive-include tests *.js
 recursive-include scripts *.py
 recursive-include event_control_lab/web *.html *.js *.css

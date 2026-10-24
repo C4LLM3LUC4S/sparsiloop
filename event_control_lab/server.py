@@ -33,7 +33,8 @@ class Handler(BaseHTTPRequestHandler):
         routes = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
                   "/style.css": ("style.css", "text/css"), "/study.js": ("study.js", "text/javascript"),
                   "/controllers.js": ("controllers.js", "text/javascript"),
-                  "/planned.js": ("planned.js", "text/javascript")}
+                  "/planned.js": ("planned.js", "text/javascript"),
+                  "/policy-memory.js": ("policy-memory.js", "text/javascript")}
         if self.path in routes:
             name, mime = routes[self.path]
             return self.respond(200, (WEB / name).read_bytes(), mime + "; charset=utf-8")

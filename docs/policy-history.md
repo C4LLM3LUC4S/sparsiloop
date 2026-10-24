@@ -1,8 +1,19 @@
 # 换一种测试，也把前面的历史带上
 
-你已经选过发送方案，又想换几组随机初态看看，再做下一个计划？这条本地流程会保留原文件，把后来的单独评测、开发编号声明、选择和复核依次记下来。全程沿用同一份冻结 Q 表，不需要再训练，也不用手抄一长串已用编号。
+你已经选过发送方案，又想换几组随机初态看看，再做下一个计划？这条流程会保留原文件，把后来的单独评测、开发编号声明、选择和复核依次记下来。全程沿用同一份冻结 Q 表，不需要再训练，也不用手抄一长串已用编号。
 
-目前支持内置一阶模型、单输入和零目标。网页仍使用原来的格式；这份跨流程历史先在本地命令和 Python 接口中接续，网页不会把它当旧文件强行载入。
+目前支持内置一阶模型、单输入和零目标。网页可以直接接着走，较大实验或其他时钟请用本地命令和 Python 接口。
+
+## 在网页里接着做
+
+1. 在“保存的策略，拿出来再测一次”载入完整策略或历史，也可以点击“使用本页最新的策略与历史”。填新编号后，点击“只测试，不训练”。
+2. 到下方选择与复核区，选“保存的 Q 策略”，再点击“使用本页最新的策略与历史”。定好候选、选择和预留复核编号，只运行选择阶段。
+3. 点击“按原计划复核，不重新选方案”。上方后来改过的条件不会替换原计划。还有待复核计划时，程序会拒绝开始另一项任务。
+4. 想再测或做新计划，就载入本页最新历史。刷新前保存完整 ZIP 和 `policy-history.json`；复核用这一阶段的 `selection-workflow.json`。ZIP 也会保留完整选择记录。后来又重复复核旧方案时，页面不会把复用按钮退回旧历史；原次结果与下载仍保持原样。若载入另一条分支，页面会说明没有自动合并。
+
+网页单独测试支持 0.2–2 秒，选择与复核支持 0.2–8 秒，均要求 20 ms 步长。策略请求最多 2 MiB、完整复核请求最多 8 MiB，并保留每次最多 20000 个计算区间的限制。如果这一步已经生成结果，但完整历史太大而无法继续，页面会保留结果、历史和下载，提示转到下方本地命令；不要回退旧历史重复使用编号。
+
+旧网页请求未声明 `keep_history: true` 时继续使用原响应和格式；新页面显式选择完整历史流程。原有固定反馈计划仍走原入口，不改数值或选择规则。
 
 ## 先单独测一次，再做新计划
 
@@ -45,7 +56,7 @@ python -m event_control_lab.policy_journal test runs/next-choice/policy-workflow
 - 编号用过了：查看 `history.html`，换新编号，保留旧历史；不要删掉失败来消除提示。
 - 来源、Q 表、物理时钟或摘要不匹配：保留原文件，回到生成它的代码版本核对；不要补写摘要，也不会改用另一个策略。
 - 输出目录存在：换新目录。程序先在临时目录完成报告，再保存到目标目录，原结果不会覆盖。
-- 网页不接收 v2 历史：使用本页的本地命令。不要删字段把新格式伪装成旧文件；完整历史的网页接入尚未提供。
+- 网页文件或请求超限：保留当前完整下载，使用本页的本地命令接续。不要删掉历史或回到旧文件，也不要改摘要来绕过校验。
 
 只重新整理保存结果、不再运行：
 
@@ -61,4 +72,4 @@ Python 接口是 `evaluate_saved(saved, seeds, config=None)`、`select_plan(spec
 
 Use `python -m event_control_lab.policy_journal evaluate --policy FILE --seeds NEW_IDS --out NEW_FOLDER`, then `select --policy NEW_HISTORY --spec PLAN --out NEW_FOLDER`, followed by `test POLICY_WORKFLOW --out NEW_FOLDER`. Continue new tasks with the latest `policy-history.json`; repeat or redraw a saved step with its `policy-workflow.json`. The v2 history preserves the original supplied file and appends subsequent declarations, selections, tests and standalone evaluations in order. Declarations are not simulated experiments. Pending plans must be tested before starting another task; unrun tests do not consume their seed numbers. A legacy history ending at selection needs its complete test record to resolve whether tests ran.
 
-No retraining, exploration or test-based reselection occurs. Standalone tests use seed-based initial states and additional references; planned tests retain the declared fixed initial state and a common message cap. Keep these protocols separate. Original numerical exports, failures and unknown values remain; execution and report-rendering environments are distinct. Existing v1 formats and their source identities are unchanged. This new history workflow is currently local API/CLI only; the web interface gives an explicit recovery route. Checksums and declared histories do not authenticate provenance, merge unprovided branches, or establish independent testing or stability.
+No retraining, exploration or test-based reselection occurs. Standalone tests use seed-based initial states and additional references; planned tests retain the declared fixed initial state and a common message cap. Keep these protocols separate. Original numerical exports, failures and unknown values remain; execution and report-rendering environments are distinct. Existing v1 formats and their source identities are unchanged. In the web interface, use the latest complete policy/history, evaluate with fresh IDs, select a schedule, then test the original saved choice. Save the complete ZIP and latest history before refreshing. The web adapter retains its 20 ms clock, bounded horizons/workload and 2 MiB policy / 8 MiB complete-request limits; completed results and downloads remain available if continuation becomes too large. Flag-less HTTP clients keep their original contracts. Checksums and declared histories do not authenticate provenance, merge unprovided branches, or establish independent testing or stability.

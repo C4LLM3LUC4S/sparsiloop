@@ -35,7 +35,7 @@ class ServerTests(unittest.TestCase):
             connection.close()
 
     def test_page_and_static_assets_work_without_external_resources(self):
-        for path in ("/", "/app.js", "/style.css", "/study.js"):
+        for path in ("/", "/app.js", "/style.css", "/study.js", "/policy-memory.js"):
             status, headers, content = self.request("GET", path)
             self.assertEqual(status, 200)
             self.assertGreater(len(content), 100)

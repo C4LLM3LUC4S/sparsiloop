@@ -3,6 +3,8 @@
  const form=document.querySelector("#planned-settings"), testForm=document.querySelector("#planned-test-settings");
  const maximum=8*1024*1024, previous={selection:false,test:false};
  const bundleFormat="sparsiloop-planned-bundle-v1";
+ const workflowFormat='sparsiloop-policy-workflow-v1';
+ const rawRecord=value=>value?.format===workflowFormat?value.data?.result:value?.format===bundleFormat?value.result:value;
  let defaults=null, latest=null, loaded=null, fileVersion=0, reading=false;
  let policyLoaded=null, recentPolicy=null, policyVersion=0, policyReading=false;
  const number=v=>v===null || v===undefined ? "无法计算" : Number(v).toFixed(6);
@@ -53,12 +55,11 @@
   }
  }
  function usePolicy(value,message) {
-  if(value?.format==='sparsiloop-policy-history-v2')throw Error('这份跨流程历史请用本地命令 python -m event_control_lab.policy_journal select 继续；网页暂不接收新格式，请保留完整原文件');
-  if(!value || !['sparsiloop-frozen-policy-v1','sparsiloop-planned-policy-history-v1'].includes(value.format))
+  if(!value || !['sparsiloop-frozen-policy-v1','sparsiloop-planned-policy-history-v1','sparsiloop-policy-history-v2'].includes(value.format))
    throw Error('请使用完整 policy-checkpoint.json 或 policy-history.json，只有 Q 表不够');
   if(new TextEncoder().encode(JSON.stringify(value)).length>2*1024*1024)
    throw Error('策略超过网页的 2 MiB 限制，请用本地命令行保留完整记录');
-  const checkpoint=value.format==='sparsiloop-planned-policy-history-v1'?value.checkpoint:value;
+  const checkpoint=value.format==='sparsiloop-frozen-policy-v1'?value:value.checkpoint;
   const c=checkpoint?.training_config;
   if(!c || c.plant!=='scalar' || c.dt!==0.02 || typeof c.duration!=='number' || c.duration<0.2 || c.duration>8 ||
    typeof c.input_limit!=='number' || !Number.isFinite(c.input_limit) || c.input_limit<=0 || c.input_limit>20)
@@ -70,9 +71,11 @@
   form.elements.controller_kind.value='frozen';policyLoaded=JSON.parse(JSON.stringify(value));policyReading=false;policyMode();
   document.querySelector('#planned-policy-source').textContent=`${message} 沿用 ${c.duration} 秒、每步 20 ms、输入上限 ${c.input_limit}；运行前还会核对完整来源、摘要和历史。${changes.length?'已把'+changes.join('，')+'，避免超过时长；选择前仍可调整。':''}`;
   const history=document.querySelector('#planned-policy-history');history.hidden=false;
+  const origin=value.origin?.result?.policy_after||value.origin?.policy_after||value.origin;
   history.querySelector('pre').textContent=JSON.stringify({training_seeds:checkpoint.training_seeds,
-   earlier_evaluation_seeds:value.earlier_evaluation_seeds||checkpoint.previous_evaluation_seeds,
-   declared_development_seeds:value.declared_development_seeds||[],planned_history:value.planned_history||[]},null,2);
+   known_used_seeds:checkpoint.previous_evaluation_seeds,
+   original_declared_development_seeds:value.declared_development_seeds||origin?.declared_development_seeds||[],planned_history:value.planned_history||origin?.planned_history||[],
+   subsequent_phases:(value.events||[]).map(e=>({phase:e.phase,seeds:e.seeds}))},null,2);
  }
  function conditions(record,testing,ran=true) {
   const section=node("div"), spec=record.spec, c=spec.config;
@@ -85,9 +88,10 @@
   section.append(details);return section;
  }
  function source(record,message) {
-  loaded=record;reading=false;const raw=record?.format===bundleFormat?record.result:record;
+  if(!record){loaded=null;reading=false;document.querySelector('#planned-record-source').textContent=message;return;}
+  loaded=record;reading=false;const raw=rawRecord(record), recordedContext=record?.format===workflowFormat?record.data?.context:record?.context;
   const sha=typeof raw?.record_sha256==="string"?raw.record_sha256.slice(0,12):"待校验";
-  const environment=record?.format===bundleFormat && record.context?.selection?.state==="recorded" ?
+  const environment=recordedContext?.selection?.state==="recorded" ?
    "带有选择时的环境记录。" : "原文件没有选择时的环境，复核后也会保留未知。";
   document.querySelector("#planned-record-source").textContent=`${message} ${environment} 记录：${sha}。复核时会检查完整内容、版本和选择规则。`;
   if(previous.test){const status=document.querySelector("#planned-test-status");status.className="";status.textContent="当前载入的选择记录已更新，下方仍是上次复核结果；请核对结果自身的条件和记录编号。";}
@@ -105,7 +109,8 @@
  }
  function output(mode,result) {
   const record=result.record, choice=mode==="selection"?record:record.selection;
-  const saved=result.selection_context?{format:bundleFormat,result:choice,context:result.selection_context}:choice;
+  const saved=result.selection_workflow||(result.selection_context?{format:bundleFormat,result:choice,context:result.selection_context}:choice);
+  const history=result.policy_history||record.policy_after;
   const target=document.querySelector(`#planned-${mode}-output`);target.replaceChildren();target.hidden=false;
   const names=new Map(choice.selection_summaries.map(r=>[r.id,candidate(r)]));
   if(mode==="selection") {
@@ -118,7 +123,9 @@
     failures.map(r=>[names.get(r.candidate_id),r.seed,statuses[r.run.status]||r.run.status,r.run.duration_completed,r.run.error||"—"])));target.append(d);}
    target.append(node("p",choice.selected_id?"下一步可以直接点击下面的复核按钮。候选、种子和条件已经保存在记录里，上方再改参数也不会改动它。":
     "没有合格候选，复核不会运行任何测试种子。先看提前停止或误差超限的原因，保留记录；如果要改方案，请把已看过的种子列入历史，再另存一份。","scope"));
-   latest=saved;source(saved,"已保留刚才生成的完整选择记录。");++fileVersion;testForm.elements.selection.value="";
+   if(result.web_testable===false){latest=null;source(null,'结果已经生成，但完整记录太大。请下载报告 ZIP，用本地命令继续复核；旧选择不会冒充本次结果。');}
+   else{latest=saved;source(saved,"已保留刚才生成的完整选择记录。");}
+   ++fileVersion;testForm.elements.selection.value="";
    if(previous.test)document.querySelector("#planned-test-status").textContent="选择记录已更新，下方仍是上一份记录的复核结果；它的条件和下载文件保持原样。";
   } else {
    const messages={met_declared_tests:"所选方案在这次每个复核种子下都完整结束，而且位置误差达标。",
@@ -135,21 +142,24 @@
   const downloads=node("div",undefined,"downloads");
   downloads.append(button("下载这一步的完整报告 ZIP",()=>download(`sparsiloop-planned-${mode}-${Date.now()}.zip`,
    Uint8Array.from(atob(result.archive_base64),x=>x.charCodeAt(0)),"application/zip")),
-   button("另存选择记录和运行环境",()=>download(saved.format===bundleFormat?"selection-bundle.json":"selection.json",JSON.stringify(saved,null,2),"application/json")));
-  if(record.policy_after) {
-   recentPolicy=JSON.parse(JSON.stringify(record.policy_after));
-   downloads.append(button('另存策略和完整历史，留到下次新计划',()=>download('policy-history.json',JSON.stringify(record.policy_after,null,2),'application/json')));
+   button("另存选择记录和运行环境",()=>download(saved.format===workflowFormat?'selection-workflow.json':saved.format===bundleFormat?"selection-bundle.json":"selection.json",JSON.stringify(saved,null,2),"application/json")));
+  if(history) {
+   const remembered=window.labUI.rememberPolicy(history);
+   recentPolicy=remembered.value;
+   if(remembered.retained)target.append(node('p',remembered.message,'scope'));
+   downloads.append(button('另存策略和完整历史，留到下次新计划',()=>download('policy-history.json',JSON.stringify(history,null,2),'application/json')));
    const separate=node('details');separate.className='standalone-policy-route';
    separate.append(node('summary','想换一组随机初态再测？'),
     node('p','这会转到上方的单独测试：使用同一份 Q 表，按新种子生成初态，并运行三种发送方式及固定反馈对照。原计划仍用固定初态，两份结果请分开看；这里的操作不会重新训练或重跑原计划。','hint'),
-    button('载入上方的单独测试',()=>window.dispatchEvent(new CustomEvent('sparsiloop-standalone-policy',{detail:record.policy_after.checkpoint}))),
-    button('另存单独测试用的 policy-checkpoint.json',()=>download('policy-checkpoint.json',JSON.stringify(record.policy_after.checkpoint,null,2),'application/json')),
-    node('p','这个策略文件保留全部已知的已用编号；后续请换新编号。阶段名称仍在原 policy-history.json 中，请把两份文件都留好。单独测试的新输出会继续记已用编号，但不会自动合并回旧的计划历史。','hint'));
+    button('载入上方的单独测试',()=>window.dispatchEvent(new CustomEvent('sparsiloop-standalone-policy',{detail:remembered.value}))),
+    button('另存单独测试用的 policy-checkpoint.json',()=>download('policy-checkpoint.json',JSON.stringify(history.checkpoint,null,2),'application/json')),
+    node('p','这里会整体载入策略和阶段历史，只准备、不运行。请先完成原计划复核，再换新编号单独测试；新阶段会接在原历史后。兼容的 checkpoint 只保留合并编号，请优先保存完整历史。','hint'));
    target.append(separate);
    ++policyVersion;form.elements.policy_file.value='';
-   try{usePolicy(record.policy_after,'已保留这一步用过的编号。另做新计划前请换新编号；原选择仍可重复复核。');}
+   try{usePolicy(remembered.value,remembered.retained?remembered.message:'已保留这一步用过的编号。先完成复核，再另做新计划并换新编号；原选择仍可重复复核。');}
    catch(e){policyLoaded=null;policyReading=false;document.querySelector('#planned-policy-source').textContent=`本次结果已生成，但策略历史暂未载入下一计划：${e.message}。请下载完整 ZIP，用本地流程继续。`;}
   }
+  if(result.continuation_note)target.append(node('p',result.continuation_note,'scope'));
   target.append(runtimeView(result),downloads,node("p","完整解压 ZIP 后打开 report.html。原始结果、全部候选或测试、轨迹、失败、条件和环境都在里面；这里的小数只作简短显示。","hint"));previous[mode]=true;
  }
  function invalid(mode,error) {
@@ -176,16 +186,17 @@
    if(policyReading)throw Error('策略文件还在读取，请稍后再运行');
    if(!policyLoaded)throw Error('请先载入完整策略，或使用上方实验保存的策略；不会自动改用线性反馈');
    value.policy_checkpoint=policyLoaded;
+   value.keep_history=true;
   }
   await execute("selection",value);
  }catch(e){invalid("selection",e);}});
- testForm.addEventListener("submit",async e=>{e.preventDefault();if(window.labUI.isBusy())return;try{if(reading)throw Error("选择记录还在读取，请稍后再复核");if(!loaded)throw Error("请先运行选择阶段，或载入完整 selection.json");await execute("test",{selection:loaded});}catch(e){invalid("test",e);}});
+ testForm.addEventListener("submit",async e=>{e.preventDefault();if(window.labUI.isBusy())return;try{if(reading)throw Error("选择记录还在读取，请稍后再复核");if(!loaded)throw Error("请先运行选择阶段，或载入完整选择记录");const value={selection:loaded};if(loaded.format===workflowFormat)value.keep_history=true;await execute("test",value);}catch(e){invalid("test",e);}});
  document.querySelector("#planned-use-latest").addEventListener("click",()=>{if(!latest){invalid("test",Error("请先运行一次选择阶段"));return;}++fileVersion;testForm.elements.selection.value="";source(latest,"已载入刚才生成的完整选择记录。");});
  testForm.elements.selection.addEventListener("change",async()=>{
   const version=++fileVersion, file=testForm.elements.selection.files[0];reading=false;if(!file)return;reading=true;
   try{if(file.size>maximum)throw Error("文件超过网页的 8 MiB 限制，请用命令行复核");const value=JSON.parse(await file.text());if(version!==fileVersion)return;
-   if(!['sparsiloop-planned-selection-v1','sparsiloop-planned-policy-selection-v1'].includes(value?.format) && !(value?.format===bundleFormat && value.context?.phase==="selection"))
-    throw Error("请选择 selection-bundle.json 或原始 selection.json，方案和测试记录不能代替选择");source(value,`已读取 ${file.name}，尚未完成校验。`);
+   if(!['sparsiloop-planned-selection-v1','sparsiloop-planned-policy-selection-v1'].includes(value?.format) && !(value?.format===bundleFormat && value.context?.phase==="selection") && !(value?.format===workflowFormat && value.phase==='selection'))
+    throw Error("请选择这一步保存的 selection-workflow.json、selection-bundle.json 或原始 selection.json；方案和测试记录不能代替选择");source(value,`已读取 ${file.name}，尚未完成校验。`);
   }catch(e){if(version===fileVersion)invalid("test",e);}finally{if(version===fileVersion)reading=false;}
  });
  form.elements.controller_kind.addEventListener('change',policyMode);
