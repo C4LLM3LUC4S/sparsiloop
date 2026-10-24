@@ -15,6 +15,8 @@ A local lab to compare event-triggered and periodic control under communication 
 
 ## 从你要做的事开始
 
+先固定一个要回答的问题，再选实验路径。如何判断这次有没有帮上忙、多标签页忙碌时怎么办，见[实际用途、运行规模与恢复](docs/reliability.md)。
+
 | 想做什么 | 从哪里开始 |
 | --- | --- |
 | 先看看少发消息有什么影响 | 运行 `python quickstart.py`，在网页调整条件后比较误差与实际消息数 |

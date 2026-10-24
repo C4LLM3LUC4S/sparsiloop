@@ -17,7 +17,6 @@ import venv
 PROBE = r'''
 from dataclasses import asdict
 from http.client import HTTPConnection
-from http.server import ThreadingHTTPServer
 from importlib import metadata, resources
 import json
 from pathlib import Path
@@ -25,7 +24,7 @@ from threading import Thread
 import hashlib
 import event_control_lab
 from event_control_lab import Config, GridSpec, PlantAdapter, StudySpec, compare, grid_check, study
-from event_control_lab.server import Handler
+from event_control_lab.server import Handler, LocalServer
 from event_control_lab.controller_lab import ControllerLabSpec, controller_lab
 from dataclasses import replace
 import base64
@@ -98,7 +97,7 @@ class QuietHandler(Handler):
     def log_message(self, *args):
         pass
 
-server = ThreadingHTTPServer(("127.0.0.1", 0), QuietHandler)
+server = LocalServer(("127.0.0.1", 0), QuietHandler)
 worker = Thread(target=server.serve_forever, daemon=True)
 worker.start()
 api_checks = {}

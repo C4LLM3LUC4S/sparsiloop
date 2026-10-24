@@ -14,6 +14,8 @@ from . import __version__, web_planned
 
 WEB = Path(__file__).with_name("web")
 RECIPE_SLOT = BoundedSemaphore(1)
+MAX_CONNECTIONS = 8
+CONNECTION_TIMEOUT = 10
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -23,6 +25,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        if status in {429, 503}:
+            self.send_header("Retry-After", "1")
         self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
         self.end_headers()
         self.wfile.write(data)
@@ -59,27 +63,28 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin is not None and origin not in {"http://" + host, f"http://localhost:{self.server.server_port}"}:
             return self.respond(403, b'{"error":"same origin required"}')
+        acquired = False
         try:
             length = int(self.headers.get("Content-Length", "0"))
             maximum = (web_planned.MAX_REQUEST_BYTES if planned else
                        2 * 1024 * 1024 if self.path == "/api/evaluate-policy" else 65536)
             if length <= 0:
                 raise ValueError(f"request must contain 1..{maximum} bytes")
-            self.connection.settimeout(10)
+            # All six compute routes share admission before body allocation or
+            # JSON decoding. A second tab must not bypass the learning guard.
+            if not RECIPE_SLOT.acquire(blocking=False):
+                return self.respond(429, json.dumps({"error": "另一个实验还在运行。请等它结束后再试，原来的结果会保留。"}, ensure_ascii=False).encode())
+            acquired = True
+            self.connection.settimeout(CONNECTION_TIMEOUT)
             data = self.rfile.read(min(length, maximum + 1))
             if length > maximum:
                 raise ValueError(f"request must contain 1..{maximum} bytes")
             value = json.loads(data)
             if guarded:
-                if not RECIPE_SLOT.acquire(blocking=False):
-                    return self.respond(429, json.dumps({"error": "另一个控制实验还在运行，请等它结束后再试。"}, ensure_ascii=False).encode())
-                try:
-                    routes = {"/api/controllers": run_recipes, "/api/evaluate-policy": test_saved_policy,
-                              "/api/planned/select": web_planned.select_from_web,
-                              "/api/planned/test": web_planned.test_from_web}
-                    result = routes[self.path](value)
-                finally:
-                    RECIPE_SLOT.release()
+                routes = {"/api/controllers": run_recipes, "/api/evaluate-policy": test_saved_policy,
+                          "/api/planned/select": web_planned.select_from_web,
+                          "/api/planned/test": web_planned.test_from_web}
+                result = routes[self.path](value)
             else:
                 result = study(StudySpec.from_dict(value)) if self.path == "/api/study" else compare(Config.from_dict(value))
             payload = json.dumps(result, ensure_ascii=False, allow_nan=False).encode()
@@ -90,11 +95,56 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(400, json.dumps({"error": str(exc)}, ensure_ascii=False).encode())
         except OSError:
             return self.respond(500, json.dumps({"error": "这次没能生成下载文件，请检查本机临时目录的可用空间和写入权限。"}, ensure_ascii=False).encode())
+        finally:
+            if acquired:
+                RECIPE_SLOT.release()
         self.respond(200, payload)
 
 
+class LocalServer(ThreadingHTTPServer):
+    """Bound local connection workers; expensive work has its separate slot."""
+
+    request_queue_size = 16
+
+    def __init__(self, address, handler=Handler):
+        self.connection_slots = BoundedSemaphore(MAX_CONNECTIONS)
+        super().__init__(address, handler)
+
+    def get_request(self):
+        request, address = super().get_request()
+        request.settimeout(CONNECTION_TIMEOUT)
+        return request, address
+
+    def process_request(self, request, client_address):
+        if not self.connection_slots.acquire(blocking=False):
+            payload = json.dumps({"error": "本地连接暂时已满，请稍后重试；已有结果不会被清除。"}, ensure_ascii=False).encode()
+            response = ("HTTP/1.0 503 Service Unavailable\r\n"
+                        "Content-Type: application/json; charset=utf-8\r\n"
+                        f"Content-Length: {len(payload)}\r\n"
+                        "Retry-After: 1\r\nConnection: close\r\n\r\n").encode() + payload
+            try:
+                request.settimeout(0.25)
+                request.sendall(response)
+            except OSError:
+                pass
+            finally:
+                self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self.connection_slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self.connection_slots.release()
+
+
 def serve(port=8788):
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = LocalServer(("127.0.0.1", port), Handler)
     print(f"SparsiLoop: http://127.0.0.1:{server.server_port}", flush=True)
     try:
         server.serve_forever()

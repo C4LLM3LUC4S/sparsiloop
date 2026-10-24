@@ -13,6 +13,8 @@ Try it on your computer: set a message limit, delay and loss probability, then c
 
 ## Start with your task
 
+Start with one decision and a retained recheck. [Practical value and local workload](docs/reliability.md) explains the acceptance path, shared computation admission and connection limits; this is a local lab rather than a shared cloud service.
+
 | What you want to do | Where to start |
 | --- | --- |
 | Explore the effect of fewer messages | Run `python quickstart.py` and compare error with actual attempted messages |
