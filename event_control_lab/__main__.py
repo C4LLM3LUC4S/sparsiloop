@@ -58,6 +58,11 @@ def main():
     policy.add_argument("--out", type=Path, required=True)
     arguments = parser.parse_args()
     try:
+        if arguments.command != "serve" and (arguments.out.exists() or arguments.out.is_symlink()):
+            raise ValueError(
+                "输出路径已存在，这次没有开始计算；请换一个新目录，旧结果会保留。 / "
+                "output directory already exists; choose a new --out path"
+            )
         if arguments.command == "serve":
             if not 0 <= arguments.port <= 65535:
                 raise ValueError("port must be between 0 and 65535")
@@ -66,8 +71,6 @@ def main():
             from .policy import evaluate_policy, export_evaluation, read_checkpoint
             from .policy_files import load_standalone_checkpoint
 
-            if arguments.out.exists():
-                raise ValueError("output directory already exists; choose a new --out path")
             value, digest = read_checkpoint(arguments.checkpoint)
             load_standalone_checkpoint(value)
             config = Config.from_dict(json.loads(arguments.config.read_text(encoding="utf-8-sig"))) if arguments.config else None
@@ -78,8 +81,6 @@ def main():
             print("评测已保存；这次没有重新训练。 / Evaluation saved; no training.")
             print(str((arguments.out / "report.html").resolve()))
         elif arguments.command == "controller-lab":
-            if arguments.out.exists():
-                raise ValueError("output directory already exists; choose a new --out path")
             spec = ControllerLabSpec.from_dict(json.loads(arguments.spec.read_text(encoding="utf-8-sig"))) if arguments.spec else ControllerLabSpec()
             result = controller_lab(spec, arguments.method)
             export_controller_lab(result, arguments.out)
