@@ -65,6 +65,8 @@ python quickstart.py --mode controllers
 
 想换成自己的模型：先运行 `python -m examples.own_model_case --out runs/own-model`，打开新目录中的 `report.html`。报告会带你查看一个简化执行器在减少消息后的表现，再尝试三种控制方法。熟悉流程后，按[模型接入说明](docs/own-model.md)替换示例中的模型。先用已知输入检查计算结果，再比较控制效果。
 
+想把这次结果留到以后，除了完整报告和最新历史，也保存对应的发行 ZIP。具体哪些文件用于复核、接续或只重绘，见[旧文件与源码恢复](docs/source-recovery.md)。
+
 ## 没有成功打开时
 
 - 终端说找不到 `quickstart.py`：确认已经完整解压，并进入包含这个文件的项目文件夹。

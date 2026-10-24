@@ -16,7 +16,7 @@ A local lab for students and control researchers to compare event-triggered and 
 
 ## 展示与交付约定
 
-- 目前是 0.0.1 开发原型；两个归一化教学对象、三种发送策略，不使用硬件或已训练神经控制器。
+- 目前是 0.1.0a1 alpha 发行；两个归一化教学对象、三种发送策略，不使用硬件或已训练神经控制器。
 - Python 模块仍为 `event_control_lab`，现有命令和导入保持可用；本地分发包名称统一为 `sparsiloop`，新增同名命令入口，旧 `event-control-lab` 命令保留为兼容入口。这些是本地开发包配置，尚未上传 PyPI。
 - 自有代码使用 MIT 许可；不带入课程作业、私人论文、参数、原始用户反馈或本地环境。
 - 拟用主题：`event-triggered-control`、`networked-control`、`control-systems`、`simulation`、`reproducibility`、`python`。

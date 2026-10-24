@@ -4,6 +4,7 @@ import json
 from threading import Thread
 import unittest
 
+from event_control_lab import __version__
 from event_control_lab.server import Handler
 
 
@@ -40,6 +41,11 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertGreater(len(content), 100)
             self.assertIn("default-src 'self'", headers["Content-Security-Policy"])
+
+    def test_health_identifies_the_installed_release(self):
+        status, _, content = self.request("GET", "/api/health")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(content), {"status": "ok", "version": __version__})
 
     def test_valid_api_runs_both_objects(self):
         for plant in ("scalar", "double_integrator"):
