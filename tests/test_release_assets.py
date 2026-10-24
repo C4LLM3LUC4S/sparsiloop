@@ -57,10 +57,10 @@ class ReleaseTests(unittest.TestCase):
                 builder.committed_source()
 
     def assets(self, destination):
-        files = {"SparsiLoop-0.1.0a1.zip": b"bundle",
-                 "sparsiloop-0.1.0a1-py3-none-any.whl": b"wheel",
-                 "sparsiloop-0.1.0a1.tar.gz": b"source",
-                 "RELEASE_INFO.json": json.dumps({"version": "0.1.0a1", "source_commit": "a" * 40,
+        files = {"SparsiLoop-0.1.0a2.zip": b"bundle",
+                 "sparsiloop-0.1.0a2-py3-none-any.whl": b"wheel",
+                 "sparsiloop-0.1.0a2.tar.gz": b"source",
+                 "RELEASE_INFO.json": json.dumps({"version": "0.1.0a2", "source_commit": "a" * 40,
                     "repository": publisher.REPOSITORY, "ci_url": None}).encode()}
         for name, data in files.items():
             (destination / name).write_bytes(data)
@@ -80,7 +80,7 @@ class ReleaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             self.assets(directory)
-            (directory / "SparsiLoop-0.1.0a1.zip").write_bytes(b"changed")
+            (directory / "SparsiLoop-0.1.0a2.zip").write_bytes(b"changed")
             with patch.object(publisher, "gh", side_effect=AssertionError("Network before verification")):
                 with self.assertRaisesRegex(ValueError, "checksum mismatch"):
                     publisher.publish(directory, directory / "notes.md", True)

@@ -6,10 +6,10 @@ Try it on your computer: set a message limit, delay and loss probability, then c
 
 [中文](README.md) · [Start here](START_HERE.md) · [Protocol](docs/protocol.md)
 
-**Version `0.1.0a1`: first alpha distribution.** It provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
+**Version `0.1.0a2`: alpha update for selection evidence and bounded local requests.** It provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
 
 
-**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a1/SparsiLoop-0.1.0a1.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a1) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
+**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a2/SparsiLoop-0.1.0a2.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a2) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
 
 ## Start with your task
 
