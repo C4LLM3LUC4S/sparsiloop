@@ -64,10 +64,12 @@ def main():
             serve(arguments.port)
         elif arguments.command == "evaluate-policy":
             from .policy import evaluate_policy, export_evaluation, read_checkpoint
+            from .policy_files import load_standalone_checkpoint
 
             if arguments.out.exists():
                 raise ValueError("output directory already exists; choose a new --out path")
             value, digest = read_checkpoint(arguments.checkpoint)
+            load_standalone_checkpoint(value)
             config = Config.from_dict(json.loads(arguments.config.read_text(encoding="utf-8-sig"))) if arguments.config else None
             seeds = [int(part.strip()) for part in arguments.seeds.split(",")]
             result = evaluate_policy(value, seeds, config)

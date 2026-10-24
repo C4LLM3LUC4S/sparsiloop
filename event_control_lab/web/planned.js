@@ -138,6 +138,13 @@
   if(record.policy_after) {
    recentPolicy=JSON.parse(JSON.stringify(record.policy_after));
    downloads.append(button('另存策略和完整历史，留到下次新计划',()=>download('policy-history.json',JSON.stringify(record.policy_after,null,2),'application/json')));
+   const separate=node('details');separate.className='standalone-policy-route';
+   separate.append(node('summary','想换一组随机初态再测？'),
+    node('p','这会转到上方的单独测试：使用同一份 Q 表，按新种子生成初态，并运行三种发送方式及固定反馈对照。原计划仍用固定初态，两份结果请分开看；这里的操作不会重新训练或重跑原计划。','hint'),
+    button('载入上方的单独测试',()=>window.dispatchEvent(new CustomEvent('sparsiloop-standalone-policy',{detail:record.policy_after.checkpoint}))),
+    button('另存单独测试用的 policy-checkpoint.json',()=>download('policy-checkpoint.json',JSON.stringify(record.policy_after.checkpoint,null,2),'application/json')),
+    node('p','这个策略文件保留全部已知的已用编号；后续请换新编号。阶段名称仍在原 policy-history.json 中，请把两份文件都留好。单独测试的新输出会继续记已用编号，但不会自动合并回旧的计划历史。','hint'));
+   target.append(separate);
    ++policyVersion;form.elements.policy_file.value='';
    try{usePolicy(record.policy_after,'已保留这一步用过的编号。另做新计划前请换新编号；原选择仍可重复复核。');}
    catch(e){policyLoaded=null;policyReading=false;document.querySelector('#planned-policy-source').textContent=`本次结果已生成，但策略历史暂未载入下一计划：${e.message}。请下载完整 ZIP，用本地流程继续。`;}

@@ -12,7 +12,8 @@ import zipfile
 from .controller_lab import (ControllerLabSpec, controller_lab, evaluation_view,
                              export_controller_lab, export_policy_evaluation, records)
 from .engine import Config
-from .policy import evaluate_policy, load_checkpoint
+from .policy import evaluate_policy
+from .policy_files import load_standalone_checkpoint
 
 
 MAX_INTERVALS = 20000
@@ -95,7 +96,7 @@ def run_recipes(value):
 def test_saved_policy(value):
     if not isinstance(value, dict) or set(value) - {"checkpoint", "seeds", "config"} or "checkpoint" not in value:
         raise ValueError("请选择完整的 policy-checkpoint.json，并填写新的测试种子。")
-    _, _, base = load_checkpoint(value["checkpoint"])
+    _, _, base = load_standalone_checkpoint(value["checkpoint"])
     if value.get("config") is not None:
         base = Config.from_dict(value["config"])
     web_config(base)

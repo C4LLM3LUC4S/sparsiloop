@@ -27,6 +27,7 @@ python -m event_control_lab evaluate-policy runs/training/policy-checkpoint.json
 
 ## 文件不对或运行失败时
 
+- 选到了 `policy-history.json`：这是选择/复核流程的完整历史，请保留。若要继续原计划，回到原复核入口；若想单独测试，在原计划结果中展开“想换一组随机初态再测？”，点击“载入上方的单独测试”即可，还没有开始运行。也可以另存其中的 `policy-checkpoint.json`，完整报告 ZIP 中同样有这个文件，再用上面的命令测试。
 - 提示使用 `policy-checkpoint.json`：旧 `policy.json` 只有 Q 表，缺少时间和来源记录，不能用于这个入口。旧表仍可用于原来的底层 Python 接口；要走这条完整流程，请用当前版本重新生成 checkpoint。
 - 摘要不一致：先找回原文件。摘要用于检查文件与参数是否对应，不证明来源真实，也不认证策略质量。
 - 代码版本不同：使用保存策略时的代码版本重跑，或在新版本重新训练。不要手工改摘要来消除提示。
@@ -35,6 +36,10 @@ python -m event_control_lab evaluate-policy runs/training/policy-checkpoint.json
 
 目前这个独立入口支持内置一阶模型。自定义模型仍用原来的 Python 接口；仅有一份 Q 表，无法证明重新加载的是同一个自定义模型。也可以在[网页中选择完整策略文件](web-recipes.md)，网页使用较小的时域和工作量范围。
 
+从计划结果转来的 checkpoint 保留训练、旧评测、开发及选择/测试的全部已知编号。单独测试仍会拒绝重复编号，输出再接上本次编号；它按种子生成初态，并增加固定反馈等对照，不能当成原计划的固定初态复核。阶段名称仍在原 `policy-history.json` 中；请把它和新的测试输出都保留。当前不会把单独测试自动合并回旧的分阶段历史，也不要回到旧历史重复使用刚测过的编号。
+
 ## English
+
+If you selected `policy-history.json`, keep it for the planned workflow. For standalone testing, expand the alternative-testing section in the planned web result to load or save its compatible `policy-checkpoint.json`; the complete ZIP contains the same file. Loading does not run an experiment. The checkpoint retains all known used seeds, while phase names remain in the original history. Preserve both the history and the new standalone output. Standalone evaluation samples initial states by seed and adds references; it is not a rerun of the fixed-initial-state plan. New standalone results are not automatically merged into that earlier phase history.
 
 Run `evaluate-policy CHECKPOINT --seeds 2001,2002,2003 --out NEW_FOLDER` to test a saved built-in scalar policy without training. Use `policy-checkpoint.json`, not the legacy raw `policy.json`. The checkpoint binds the table to its physical clock, input limit, source hashes and declared seed history. Optional `--config` may change network conditions but must retain the trained plant, time step, duration and input limit. All runs and failures are retained. Checksums detect mismatches; they do not authenticate provenance or certify quality. Seed separation alone does not establish independent testing or prevent adaptive test-set reuse.
