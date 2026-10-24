@@ -106,15 +106,19 @@ class EvaluationRecoveryTests(unittest.TestCase):
 
     def late_failure(self, value, target, exception):
         actual = Path.write_text
+        failure_target = (target / "policy-checkpoint.json").resolve()
+        hits = []
 
         def fail(path, *args, **kwargs):
-            if path == target / "policy-checkpoint.json":
+            if path.resolve() == failure_target:
+                hits.append(path)
                 raise exception
             return actual(path, *args, **kwargs)
 
         with patch.object(Path, "write_text", fail), self.no_compute():
             with self.assertRaises(export_recovery.ExportRecoveryError) as failed:
                 report.export_evaluation(value, target)
+        self.assertEqual(len(hits), 1, "The intended late write must be hit exactly once")
         return failed.exception
 
     def assert_outputs(self, value, output):
@@ -130,7 +134,7 @@ class EvaluationRecoveryTests(unittest.TestCase):
 
     def test_old_full_record_roundtrip_uses_its_own_reader_without_old_byte_caps(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             original = root / "original evaluation.json"
             original.write_bytes(self.original)
             with self.no_compute(), \
@@ -151,7 +155,7 @@ class EvaluationRecoveryTests(unittest.TestCase):
         value["checkpoint_file_sha256"] = "a" * 64
         before = deepcopy(value)
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             original = root / "original evaluation.json"
             original.write_text(json.dumps(value), encoding="utf-8")
             original_bytes = original.read_bytes()
@@ -173,8 +177,9 @@ class EvaluationRecoveryTests(unittest.TestCase):
 
     def test_printed_same_interpreter_command_handles_spaces_and_apostrophe(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary) / "user's reports with spaces"
+            root = Path(temporary).resolve() / "user's reports with spaces"
             root.mkdir()
+            root = root.resolve()
             error = self.late_failure(self.saved, root / "partial", OSError("injected checkpoint fault"))
             self.assertIn(sys.executable.replace("'", "''") if os.name == "nt" else sys.executable, error.command)
             self.assertEqual(" -I " in error.command, bool(sys.flags.isolated))
@@ -194,7 +199,7 @@ class EvaluationRecoveryTests(unittest.TestCase):
 
     def test_initial_copy_or_readback_failure_never_claims_a_retained_result(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             cases = (("write", "event_control_lab.export_recovery.os.fsync"),
                      ("readback", "event_control_lab.evaluation_report.read_evaluation"))
             for name, target in cases:
@@ -210,7 +215,7 @@ class EvaluationRecoveryTests(unittest.TestCase):
 
     def test_interrupted_render_returns_130_with_actual_complete_recovery_file(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             original = root / "evaluation.json"
             original.write_bytes(self.original)
             actual = Path.write_text
@@ -235,7 +240,7 @@ class EvaluationRecoveryTests(unittest.TestCase):
 
     def test_complete_report_stays_successful_if_cache_cleanup_is_locked(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             actual = Path.unlink
 
             def locked(path, *args, **kwargs):
@@ -247,7 +252,10 @@ class EvaluationRecoveryTests(unittest.TestCase):
                 report.export_evaluation(self.saved, root / "complete")
             self.assert_outputs(self.saved, root / "complete")
             retained = next(root.glob("sparsiloop-recovery-*.json"))
-            self.assertIn(str(retained), error.getvalue())
+            retained_line = next(line for line in error.getvalue().splitlines() if "备用记录也保留在 " in line)
+            reported = Path(retained_line.partition("备用记录也保留在 ")[2].partition("。 /")[0])
+            self.assertTrue(reported.is_file())
+            self.assertEqual(reported.resolve(), retained.resolve())
             self.assertEqual(report.read_evaluation(retained), self.saved)
 
     def test_incomplete_comparison_or_mismatched_source_rejects_before_output(self):
@@ -279,7 +287,7 @@ class EvaluationRecoveryTests(unittest.TestCase):
         checkpoint["checkpoint"]["checkpoint_sha256"] = policy.checkpoint_digest(checkpoint["checkpoint"])
         variants.append(("checkpoint source", checkpoint))
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             for name, value in variants:
                 with self.subTest(case=name), self.no_compute(), \
                         patch.object(report, "export_policy_evaluation") as export:
