@@ -1,0 +1,34 @@
+name: A run failed or its result is confusing / 运行或结果问题
+description: Help reproduce a local installation, workflow, or interpretation problem
+title: "[SparsiLoop] "
+body:
+  - type: markdown
+    attributes:
+      value: "A small original JSON or synthetic example is enough. Do not attach credentials, private models, personal records or licensed raw datasets. / 用原创小例子即可，不要上传私人资料。"
+  - type: input
+    id: version
+    attributes:
+      label: Package version or exact source commit / 版本或提交
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and Python version / 系统与Python版本
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: What were you trying to decide or complete? / 想做什么
+      description: Include the entry point, horizon/step, number of candidates/seeds and tabs if relevant. Approximate counts are enough.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Small reproduction and observed result / 小例子与实际结果
+      description: Give a shareable JSON or command, expected behavior and the exact error/status. Keep original files locally.
+      render: text
+    validations:
+      required: true

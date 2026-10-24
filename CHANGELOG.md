@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Share computation admission across all six web experiment routes before reading/decoding the body; reject busy requests with retry guidance while retaining normal GET access.
+- Bound the default source launcher and CLI server to eight active connection handlers with read timeouts and overload rejection. Preserve numerical source/record identities, localhost/origin validation and existing request/workload limits.
+- Document task-based acceptance and local growth limits, and add a small-reproduction issue form without private data. These bounds are not multi-user throughput or real-world effectiveness evidence.
+
 ## 0.1.0a1 — 2026-10-24
 
 - First versioned alpha distribution from the independent SparsiLoop repository: curated offline ZIP, wheel, source distribution, public source/CI receipt and SHA-256 checksums.

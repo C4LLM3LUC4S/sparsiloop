@@ -2,7 +2,6 @@
 
 import argparse
 from datetime import datetime
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 import sys
 import uuid
@@ -51,8 +50,8 @@ def main():
             print("报告已保存，打开这个文件即可查看 / Report: " + str(report), flush=True)
             open_page(report.as_uri(), args.no_open)
         else:
-            from event_control_lab.server import Handler
-            with ThreadingHTTPServer(("127.0.0.1", args.port), Handler) as server:
+            from event_control_lab.server import Handler, LocalServer
+            with LocalServer(("127.0.0.1", args.port), Handler) as server:
                 url = f"http://127.0.0.1:{server.server_port}"
                 print("网页已启动，请在浏览器打开 / Local lab: " + url, flush=True)
                 print("使用网页时请保持这个终端窗口打开；结束后按 Ctrl+C。 / Keep this terminal open; Ctrl+C stops it.", flush=True)
