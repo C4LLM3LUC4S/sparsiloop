@@ -77,4 +77,4 @@ result = compare(Config(), controller_factory=lambda config: MyController())
 
 Each schedule gets a new controller instance. Only delivered measurements and their sample/arrival times are supplied; inputs are held between arrivals. Save custom source, weights and random state separately. A local Python callable is not a sandbox, and the web UI does not run uploaded code.
 
-SparsiLoop is the project name; `event_control_lab` remains the Python module name. See [project status](PROJECT_STATUS.md) for actual checks and remaining work. MIT licensed.
+SparsiLoop is the project name; `event_control_lab` remains the Python module name. See [supported tasks and limits](docs/product-scope.md) for scope, and [GitHub Actions](https://github.com/C4LLM3LUC4S/sparsiloop/actions) for checks on a specific commit. MIT licensed.
