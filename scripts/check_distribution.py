@@ -401,6 +401,7 @@ def main():
                      "event_control_lab/policy_journal.py", "event_control_lab/policy_journal_report.py",
                      "event_control_lab/policy_journal_cli.py", "event_control_lab/web_journal.py",
                      "tests/test_web_journal.py", "tests/web_history_memory.test.js", "tests/web_record_input.test.js",
+                     "tests/web_continuation_downloads.test.js", "docs/web-recipes.md",
                      "event_control_lab/web/policy-memory.js",
                      "docs/policy-history.md", "examples/continued-policy-plan.json"):
             if (extracted / path).read_bytes() != (project / path).read_bytes():
@@ -440,7 +441,8 @@ def main():
         web_tests = None
         if node:
             browser_memory = run([node, "--test", "--test-reporter=tap", str(extracted / "tests/web_history_memory.test.js"),
-                                  str(extracted / "tests/web_record_input.test.js")],
+                                  str(extracted / "tests/web_record_input.test.js"),
+                                  str(extracted / "tests/web_continuation_downloads.test.js")],
                                  extracted, logs, "fresh-web-memory-tests")
             web_count = re.search(r"(?m)^# tests (\d+)\s*$", browser_memory.stdout)
             if not web_count:

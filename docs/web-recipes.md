@@ -14,15 +14,17 @@
 
 点击“下载完整报告 ZIP”，完整解压，再打开 `report.html`。里面保留设置、所有声明的训练和测试、失败原因、原始轨迹、汇总 CSV 及源码摘要。网页结果没有丢掉训练差或失败的运行；“无法计算”也不是零分。
 
-强化学习结果还可“另存策略”。这个文件包含 Q 表、训练条件、已用种子和来源摘要，不只是旧的原始 Q 表。
+第一次训练后，点击“保存策略，下次开始测试”，得到 `policy-checkpoint.json`，其中有 Q 表、训练条件、已用编号和来源摘要。开始接续测试后，请优先点击“保存完整历史，下次接着做”，得到 `policy-history.json`，把后来的评测、开发声明、选择和复核顺序一起带走。
+
+兼容策略在“还要用旧的单独测试入口？”里。它保留 Q 表和已知编号，但没有完整阶段顺序；只有旧入口需要这个文件时再选。重复旧方案后，接续按钮仍保存页面已经保留的后续历史，本次重复运行的原始记录仍在它自己的 ZIP 中。不同分支不会自动合并。
 
 ## 下次接着测试
 
-选择完整的 `policy-checkpoint.json`，或点击“使用刚才实验保存的策略”。填写 1–5 个新的种子，再点击“只测试，不训练”。这次不会修改 Q 表，时间尺度、模型和输入上限也会核对。
+第一次测试可选择完整 `policy-checkpoint.json`；以后加载最新 `policy-history.json`，或点击“使用本页最新的策略与历史”。填写 1–5 个新的种子，再点击“只测试，不训练”。这次不会修改 Q 表，时间尺度、模型和输入上限也会核对。
 
 如果不记得哪些编号已经用过，展开“查看已用种子”，就能看到当前文件记录的训练和测试编号，不需要自己翻 JSON。测试成功后，这里也会更新。
 
-测试后，当前页面会记住这次用过的种子。请另存更新后的策略，下一次打开网页时加载新版。重新上传旧文件仍只带有旧历史，工具无法知道你在其他副本或设备上做过哪些测试。编号不同也不能证明统计独立，反复根据测试结果调参更不能算独立测试。
+测试后，当前页面会记住这次用过的编号。请保存最新完整历史，下一次打开网页时加载它。想按刚才的选择复核，用“保存选择记录，下次按原计划复核”得到的文件；完成原计划后，才用完整历史开始新任务。完整操作见[跨流程接续历史](policy-history.md)。重新上传旧文件仍只带有旧历史，工具无法知道你在其他副本或设备上做过哪些测试。编号不同也不能证明统计独立，反复根据测试结果调参更不能算独立测试。
 
 ## 没有成功时
 
@@ -33,10 +35,10 @@
 - 另一个标签页正在运行：等它完成后再试。同一服务一次只运行一个经典控制任务。
 - 浏览器连接中断：确认终端还开着，再刷新。已经下载的 ZIP 不受影响；没有收到的结果需要重新运行，页面不会宣称已经保存。
 
-网页每步为 20 ms，每次模拟 0.2–2 秒，最多 30 轮 ILC、128 个训练种子、5 个测试种子，总仿真区间不超过 20000。接口只接受白名单方法、JSON 设置和完整策略文件，不执行上传的 Python 代码。更多模型、参数或更大实验请用已有 Python/命令行接口。
+网页每步为 20 ms。经典控制实验和单独测试每次为 0.2–2 秒，选择与复核可设为 0.2–8 秒；最多 30 轮 ILC、128 个训练种子、5 个测试种子，每次任务的总仿真区间不超过 20000。接口只接受白名单方法、JSON 设置和完整策略文件，不执行上传的 Python 代码。更多模型、参数或更大实验请用已有 Python/命令行接口。
 
 ## English
 
 To select a communication schedule for the frozen scalar Q policy, use the planned form's saved-policy mode. It reuses the preceding training result or loads the full checkpoint/history, keeps the trained clock and input limit, then runs only the declared selection and test phases. See [the complete workflow](planned-policy.md). Training parameters and policies are not selected using these tests.
 
-Open the local web lab with `python quickstart.py`. The controller section configures built-in MFAC, repeated-trial ILC and Q-learning recipes separately from the network comparison above it. Training rows are folded away from test results. Download and fully extract the report ZIP to read it offline with all raw records and failures retained. Load a complete checkpoint in the saved-policy section for evaluation without training; save the updated checkpoint to carry test-seed history into the next session. The web limits are narrower than the CLI: scalar model, 20 ms steps, 0.2–2 s horizons and at most 20000 simulation intervals. It never runs uploaded Python code.
+Open the local web lab with `python quickstart.py`. The controller section configures built-in MFAC, repeated-trial ILC and Q-learning recipes separately from the network comparison above it. Training rows are folded away from test results. Download and fully extract the report ZIP to read it offline with all raw records and failures retained. Start from a complete checkpoint, then save the latest complete `policy-history.json` to continue with all subsequent phases. Compatibility checkpoints are secondary: they keep the Q table and known IDs but omit chronological phases. Use the saved selection workflow to finish the original planned test, and the latest full history for a new task. Repeating an earlier plan retains the page's later compatible history without rewriting that replay's own ZIP. The web limits are narrower than the CLI: scalar model, 20 ms steps, 0.2–2 s standalone horizons (0.2–8 s for planned tasks) and at most 20000 simulation intervals. It never runs uploaded Python code.

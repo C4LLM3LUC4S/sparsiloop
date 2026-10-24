@@ -116,6 +116,10 @@
   const training = result.rows.filter(row=>row.stage==="training"), shown = result.rows.filter(row=>row.stage!=="training");
   const failures = result.rows.filter(row=>row.status!=="complete").length;
   const config = result.mode === "recipes" ? result.specification.config : result.specification;
+  const memory=result.policy_history||result.checkpoint;
+  const remembered=memory?window.labUI.rememberPolicy(memory):null;
+  const nextPolicy=remembered?.value||null;
+  if(nextPolicy)latest=nextPolicy;
   output.append(element("h3",result.mode === "recipes" ? "这次运行得到什么？" : "保存的策略，在新种子下表现怎样？"));
   output.append(element("p",`这份结果每次模拟 ${config.duration} 秒，每步 ${config.dt} 秒；共有 ${training.length} 次训练、${shown.length} 条运行或测试结果，${failures} 项没有跑完。失败项保留，不能算的分数也没有填零。`,"scope"));
   output.append(resultTable(shown));
@@ -127,19 +131,21 @@
    const bytes = Uint8Array.from(atob(result.archive_base64),x=>x.charCodeAt(0));
    download(`sparsiloop-${prefix}-${Date.now()}.zip`,bytes,"application/zip");
   }));
-  if (result.checkpoint) downloads.append(button("另存策略，留到下次测试",()=>download("policy-checkpoint.json",JSON.stringify(result.checkpoint,null,2),"application/json")));
-  if(result.policy_history)downloads.append(button('另存完整历史，接着下次任务',()=>download('policy-history.json',JSON.stringify(result.policy_history,null,2),'application/json')));
+  if(nextPolicy && nextPolicy.format!=='sparsiloop-frozen-policy-v1') {
+   const nextHistory=nextPolicy, compatible=checkpointOf(nextHistory);
+   downloads.append(button('保存完整历史，下次接着做',()=>download('policy-history.json',JSON.stringify(nextHistory,null,2),'application/json')));
+   const legacy=element('details');legacy.append(element('summary','还要用旧的单独测试入口？'),
+    element('p','兼容策略保留 Q 表、训练条件和全部已知编号，但没有完整阶段顺序。继续当前网页或接续流程，请保存上面的完整历史。','hint'),
+    button('保存兼容策略文件',()=>download('policy-checkpoint.json',JSON.stringify(compatible,null,2),'application/json')));
+   downloads.append(legacy);
+  } else if(nextPolicy){const savedPolicy=nextPolicy;downloads.append(button('保存策略，下次开始测试',()=>download('policy-checkpoint.json',JSON.stringify(savedPolicy,null,2),'application/json')));}
   output.append(downloads, element("p","ZIP 要完整解压，再打开 report.html。设置、每轮轨迹、失败和原始结果都在里面；下载后可以关掉网页再阅读。","hint"));
   output.append(element("p",failures ? "下一步先看哪些运行没跑完，以及停止时间和原因。改条件后另存一份结果，保留这次失败。" :
    "先在同一种方法、同一组条件下比较误差和实际消息数。ILC 可以看前后轮次；强化学习要看测试阶段，训练成绩不能代替测试，也不要把不同方法直接排成总榜。","scope"));
   if(result.continuation_note)output.append(element('p',result.continuation_note,'scope'));
-  const memory=result.policy_history||result.checkpoint;
-  const remembered=memory?window.labUI.rememberPolicy(memory):null;
-  latest=remembered?.value||null;
-  if(remembered?.retained)output.append(element('p',remembered.message,'scope'),
-   button('另存页面保留的后续完整历史',()=>download('policy-history.json',JSON.stringify(remembered.value,null,2),'application/json')));
+  if(remembered?.retained)output.append(element('p',remembered.message+'上面的接续文件用于后续任务，本次原记录仍在 ZIP 中。','scope'));
   if(prefix === "saved-policy" && result.checkpoint) {
-   describeLoadedPolicy(latest,"当前页面已记住这次的策略与历史。下次接着用，请另存最新的完整历史；原始策略仍可单独保存。");
+   describeLoadedPolicy(latest,latest.format==='sparsiloop-frozen-policy-v1'?'当前页面已记住这份策略和已知编号。请保存策略文件；这个兼容文件没有完整阶段顺序。':"当前页面已记住这次的策略与历史。下次接着用，请保存最新完整历史；兼容策略文件可按需另存。");
   }
   previous[prefix] = true;
  }

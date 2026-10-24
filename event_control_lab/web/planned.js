@@ -144,18 +144,21 @@
   const downloads=node("div",undefined,"downloads");
   downloads.append(button("下载这一步的完整报告 ZIP",()=>download(`sparsiloop-planned-${mode}-${Date.now()}.zip`,
    Uint8Array.from(atob(result.archive_base64),x=>x.charCodeAt(0)),"application/zip")),
-   button("另存选择记录和运行环境",()=>download(saved.format===workflowFormat?'selection-workflow.json':saved.format===bundleFormat?"selection-bundle.json":"selection.json",JSON.stringify(saved,null,2),"application/json")));
+   button(mode==='selection'?'保存选择记录，下次按原计划复核':'保存原选择，用来重复这次复核',()=>download(saved.format===workflowFormat?'selection-workflow.json':saved.format===bundleFormat?"selection-bundle.json":"selection.json",JSON.stringify(saved,null,2),"application/json")));
   if(history) {
    const remembered=window.labUI.rememberPolicy(history);
+   const nextPolicy=remembered.value, hasStages=nextPolicy.format!=='sparsiloop-frozen-policy-v1';
+   const compatible=hasStages?nextPolicy.checkpoint:nextPolicy;
    recentPolicy=remembered.value;
    if(remembered.retained)target.append(node('p',remembered.message,'scope'));
-   downloads.append(button('另存策略和完整历史，留到下次新计划',()=>download('policy-history.json',JSON.stringify(history,null,2),'application/json')));
+   downloads.append(button(hasStages?'保存完整历史，做下一个任务':'保存页面保留的策略文件',()=>download(hasStages?'policy-history.json':'policy-checkpoint.json',JSON.stringify(nextPolicy,null,2),'application/json')));
+   if(mode==='selection')target.append(node('p','下一步要复核，用选择记录；完成原计划后再用完整历史开始新任务。刷新前请把这一步的完整 ZIP 也保存好。','hint'));
    const separate=node('details');separate.className='standalone-policy-route';
    separate.append(node('summary','想换一组随机初态再测？'),
     node('p','这会转到上方的单独测试：使用同一份 Q 表，按新种子生成初态，并运行三种发送方式及固定反馈对照。原计划仍用固定初态，两份结果请分开看；这里的操作不会重新训练或重跑原计划。','hint'),
     button('载入上方的单独测试',()=>window.dispatchEvent(new CustomEvent('sparsiloop-standalone-policy',{detail:remembered.value}))),
-    button('另存单独测试用的 policy-checkpoint.json',()=>download('policy-checkpoint.json',JSON.stringify(history.checkpoint,null,2),'application/json')),
-    node('p','这里会整体载入策略和阶段历史，只准备、不运行。请先完成原计划复核，再换新编号单独测试；新阶段会接在原历史后。兼容的 checkpoint 只保留合并编号，请优先保存完整历史。','hint'));
+    button('保存兼容策略文件（不含完整阶段顺序）',()=>download('policy-checkpoint.json',JSON.stringify(compatible,null,2),'application/json')),
+    node('p','这里会整体载入策略和阶段历史，只准备、不运行。请先完成原计划复核，再换新编号单独测试；新阶段会接在原历史后。兼容文件有 Q 表和已用编号，但没有完整阶段顺序；接着做时请优先保存完整历史。','hint'));
    target.append(separate);
    ++policyVersion;form.elements.policy_file.value='';
    try{usePolicy(remembered.value,remembered.retained?remembered.message:'已保留这一步用过的编号。先完成复核，再另做新计划并换新编号；原选择仍可重复复核。');}
