@@ -2,6 +2,16 @@
 
 先别急着重新运行。只想看结果，完整解压当时下载的报告 ZIP，打开 `report.html` 或 `history.html`；本地服务关掉后也能看。想再计算或继续策略，才需要对应的代码和完整记录。
 
+## 算完了，报告却没能保存完整
+
+本地选择、复核和完整历史命令会先保存一份完整计算记录。之后写报告出错或被中断时，终端会告诉你 **完整计算记录已保留**，给出实际文件位置和重绘命令。先修好磁盘空间或保存位置，再复制这条命令运行；它会使用本次的 Python，把报告写到一个新目录，不重新训练、选择方案或运行测试。
+
+保留提示中的 `sparsiloop-recovery-...json`。它按原格式保存结果、策略与已用编号、原选择和运行环境；不要手动改摘要或把它当成一份新实验。重绘后的报告只另记这次生成报告的环境，原来未知的内容仍是未知。
+
+如果连这份记录本身都没写成功，程序不会说已经保留了可恢复文件。先留住原输入和已有文件，检查空间与权限。报告正常写完时，备用记录会自动清理；若清理受阻，终端会列出仍保留的副本，已经完成的报告仍然有效。
+
+这条恢复路径适用于本地命令和 Python 导出。网页临时下载没有承诺留下本地恢复文件；下载失败时先保留已有文件和页面，按错误提示处理，不要假定本次新报告已经保存。
+
 ## 按下一步选文件
 
 | 你想做什么 | 保留并使用什么 |
@@ -43,3 +53,5 @@
 Keep the complete report ZIP, original choice, latest history, configuration and matching source archive. Read existing HTML directly. Repeat a planned test with its original complete choice; start a new task with the latest complete history after resolving pending tests. A checkpoint or Q table cannot recreate missing trajectories, and a test result is not a selection record.
 
 The release ZIP contains exact public source, `BUILD_INFO.json` and a per-member manifest. Keep its release information and checksums as well. Package versions, legacy `engine_version` and behavior fingerprints cannot identify an unrecorded development checkout. Archive custom model code and dependencies yourself; no private files are automatically collected. Use a fresh environment and output folder. The two `render` examples above only redraw their respective saved formats; they do not train or simulate, fill missing history, or replace unknown execution environments. Checksums and declared histories establish consistency, not authenticated origin, independence or stability.
+
+Local planned/history exports retain a complete typed recovery record before rendering. A later I/O failure or interruption prints the actual file and a redraw command using the current interpreter. Fix the save location and run that command into a new folder; it does not rerun training, selection or tests. Keep the recovery file and original input. A failed initial recovery write is not advertised as recoverable. Successful exports remove the temporary recovery copy unless cleanup is blocked, in which case the complete report remains valid and the retained copy is reported. This local-file contract does not apply to ephemeral web-download staging.

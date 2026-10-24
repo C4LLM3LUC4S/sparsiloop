@@ -9,6 +9,8 @@ from .planned_study import PlannedSpec, read_json
 from .policy import read_checkpoint
 from .policy_journal import evaluate_saved, load_workflow, select_plan, test_plan
 from .policy_journal_report import export_workflow
+from .export_recovery import ExportRecoveryError
+from .output_paths import check_new_output
 
 
 def main(argv=None):
@@ -32,9 +34,9 @@ def main(argv=None):
         command.add_argument("--out", required=True)
     args = parser.parse_args(argv)
     try:
-        target = Path(args.out).resolve()
-        if target.exists():
-            raise ValueError("输出目录已存在，请换新目录，保留旧结果。")
+        target = Path(args.out)
+        check_new_output(target)
+        target = target.resolve()
         if args.command in ("evaluate", "select"):
             value, input_hash = read_checkpoint(args.policy)
             if args.command == "evaluate":
@@ -62,6 +64,12 @@ def main(argv=None):
         print(f"报告：{target / 'report.html'}")
         print("继续新任务用 policy-history.json；复核或重绘本步用 policy-workflow.json。")
         return 0
+    except ExportRecoveryError as exc:
+        print(str(exc), file=sys.stderr)
+        return 130 if exc.interrupted else 2
+    except KeyboardInterrupt:
+        print("任务已中断，尚未生成新的完整报告或确认可恢复的记录。 / Interrupted before a complete recovery record was confirmed.", file=sys.stderr)
+        return 130
     except (ValueError, OSError, UnicodeError, RecursionError) as exc:
         print(f"没有生成新的完整报告：{exc}", file=sys.stderr)
         return 2

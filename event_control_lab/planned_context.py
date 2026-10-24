@@ -12,6 +12,7 @@ from . import __version__
 from .planned_study import FORMAT as SELECTION_FORMAT, digest, select_schedule, test_schedule
 from .planned_models import FORMAT as MODEL_SELECTION_FORMAT, TEST_FORMAT as MODEL_TEST_FORMAT
 from .planned_policy import FORMAT as POLICY_SELECTION_FORMAT, TEST_FORMAT as POLICY_TEST_FORMAT
+from .export_recovery import recovery_record
 
 
 BUNDLE_FORMAT = "sparsiloop-planned-bundle-v1"
@@ -160,7 +161,7 @@ def selection_bundle(value):
             "context": context_for(result, selection=saved["context"]["selection"])}
 
 
-def export_bundle(value, destination, input_hash=None):
+def export_bundle(value, destination, input_hash=None, *, recover_on_failure=True):
     """Render without rerunning; unrecorded execution environments remain unknown."""
     from .planned_report import export_selection, export_test, write_json
 
@@ -169,10 +170,11 @@ def export_bundle(value, destination, input_hash=None):
                 "execution": deepcopy(saved["context"]), "report_rendering": runtime_info(),
                 "scope": "Self-recorded execution facts, bound by checksums; not authenticated provenance or cross-platform bitwise parity"}
     testing = saved["context"]["phase"] == "test"
-    (export_test if testing else export_selection)(saved["result"], destination, input_hash, environment=manifest)
-    folder = Path(destination)
-    write_json(folder / "environment.json", manifest)
-    write_json(folder / "selection-bundle.json", selection_bundle(saved))
-    if testing:
-        write_json(folder / "test-bundle.json", saved)
+    with recovery_record(saved, destination, "planned", enabled=recover_on_failure):
+        (export_test if testing else export_selection)(saved["result"], destination, input_hash, environment=manifest)
+        folder = Path(destination)
+        write_json(folder / "environment.json", manifest)
+        write_json(folder / "selection-bundle.json", selection_bundle(saved))
+        if testing:
+            write_json(folder / "test-bundle.json", saved)
     return manifest

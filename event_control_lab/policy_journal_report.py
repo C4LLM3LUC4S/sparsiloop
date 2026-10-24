@@ -8,6 +8,7 @@ import tempfile
 from . import planned_context, policy
 from .planned_report import page, table, write_json
 from .policy_journal import load_workflow, origin_history, reserved_seeds
+from .export_recovery import recovery_record
 
 
 def continuation_guidance(value):
@@ -57,41 +58,42 @@ def history_page(value):
     return page("接着上次的策略往下做", body)
 
 
-def export_workflow(value, destination, input_hash=None):
+def export_workflow(value, destination, input_hash=None, *, recover_on_failure=True):
     saved = load_workflow(value)
     target = Path(destination)
     if target.exists():
         raise ValueError("输出目录已存在，请换新目录，旧结果不会覆盖。")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="sparsiloop-journal-", dir=target.parent) as temporary:
-        folder = Path(temporary) / "report"
-        if saved["phase"] == "evaluation":
-            policy.export_evaluation(saved["data"], folder)
-        else:
-            planned_context.export_bundle(saved["data"], folder, input_hash)
-        compatible = json.loads((folder / "policy-checkpoint.json").read_text(encoding="utf-8"))
-        if compatible != saved["history_after"]["checkpoint"]:
-            raise ValueError("导出的完整策略与接续历史不一致，没有保存新报告。")
-        old_history = folder / "policy-history.json"
-        if old_history.exists():
-            old_history.rename(folder / "numeric-policy-history-v1.json")
-        write_json(folder / "policy-history.json", saved["history_after"])
-        write_json(folder / "policy-workflow.json", saved)
-        write_json(folder / "journal-environment.json", {
-            "phase": saved["phase"], "execution": saved["execution_runtime"],
-            "report_rendering": planned_context.runtime_info(), "input_sha256": input_hash,
-            "scope": "Self-recorded execution and rendering facts; not authenticated provenance"})
-        (folder / "history.html").write_text(history_page(saved), encoding="utf-8")
-        report = folder / "report.html"
-        text = report.read_text(encoding="utf-8")
-        notice = ('<section id="policy-continuation"><h2>这一步已接在原历史之后</h2>'
-                  + continuation_guidance(saved)
-                  + '<p>查看<a href="history.html">完整阶段顺序和下一步操作</a>。'
-                  '下方的原数值记录仍保留，单独使用它们不能代替完整阶段历史。</p></section>')
-        end = text.find("</h1>")
-        if end < 0:
-            raise ValueError("原报告缺少标题，没有保存新报告。")
-        report.write_text(text[:end+5]+notice+text[end+5:], encoding="utf-8")
-        if target.exists():
-            raise ValueError("输出目录已存在，请换新目录，旧结果不会覆盖。")
-        folder.rename(target)
+    with recovery_record(saved, target, "history", enabled=recover_on_failure):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="sparsiloop-journal-", dir=target.parent) as temporary:
+            folder = Path(temporary) / "report"
+            if saved["phase"] == "evaluation":
+                policy.export_evaluation(saved["data"], folder)
+            else:
+                planned_context.export_bundle(saved["data"], folder, input_hash, recover_on_failure=False)
+            compatible = json.loads((folder / "policy-checkpoint.json").read_text(encoding="utf-8"))
+            if compatible != saved["history_after"]["checkpoint"]:
+                raise ValueError("导出的完整策略与接续历史不一致，没有保存新报告。")
+            old_history = folder / "policy-history.json"
+            if old_history.exists():
+                old_history.rename(folder / "numeric-policy-history-v1.json")
+            write_json(folder / "policy-history.json", saved["history_after"])
+            write_json(folder / "policy-workflow.json", saved)
+            write_json(folder / "journal-environment.json", {
+                "phase": saved["phase"], "execution": saved["execution_runtime"],
+                "report_rendering": planned_context.runtime_info(), "input_sha256": input_hash,
+                "scope": "Self-recorded execution and rendering facts; not authenticated provenance"})
+            (folder / "history.html").write_text(history_page(saved), encoding="utf-8")
+            report = folder / "report.html"
+            text = report.read_text(encoding="utf-8")
+            notice = ('<section id="policy-continuation"><h2>这一步已接在原历史之后</h2>'
+                      + continuation_guidance(saved)
+                      + '<p>查看<a href="history.html">完整阶段顺序和下一步操作</a>。'
+                      '下方的原数值记录仍保留，单独使用它们不能代替完整阶段历史。</p></section>')
+            end = text.find("</h1>")
+            if end < 0:
+                raise ValueError("原报告缺少标题，没有保存新报告。")
+            report.write_text(text[:end+5]+notice+text[end+5:], encoding="utf-8")
+            if target.exists():
+                raise ValueError("输出目录已存在，请换新目录，旧结果不会覆盖。")
+            folder.rename(target)

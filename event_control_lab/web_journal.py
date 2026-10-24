@@ -32,7 +32,7 @@ def pack(workflow, selection=None):
     testable = choice is not None and _bytes({"selection": choice, "keep_history": True}) <= REQUEST_LIMIT
     with tempfile.TemporaryDirectory(prefix="sparsiloop-web-journal-") as temporary:
         folder = Path(temporary)/"report"
-        export_workflow(saved, folder)
+        export_workflow(saved, folder, recover_on_failure=False)
         if phase == "test":
             (folder/"selection-workflow.json").write_text(
                 json.dumps(selection, ensure_ascii=False, indent=2, allow_nan=False)+"\n", encoding="utf-8")
