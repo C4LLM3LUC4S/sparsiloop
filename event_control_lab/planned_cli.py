@@ -9,6 +9,7 @@ from .planned_study import PlannedSpec, read_json
 from .planned_context import as_bundle, export_bundle, select_with_context, test_with_context
 from .export_recovery import ExportRecoveryError
 from .output_paths import check_new_output
+from .cli_input_errors import read_cli_input, recursion_failure
 
 
 def main(argv=None):
@@ -32,9 +33,9 @@ def main(argv=None):
         output = Path(args.out)
         check_new_output(output)
         output = output.resolve()
-        value, input_hash = read_json(args.spec if args.command == "select" else args.record)
+        value, input_hash = read_cli_input(args.spec if args.command == "select" else args.record, read_json)
         if args.command == "select":
-            policy_checkpoint = read_json(args.policy_checkpoint)[0] if args.policy_checkpoint else None
+            policy_checkpoint = read_cli_input(args.policy_checkpoint, read_json)[0] if args.policy_checkpoint else None
             if args.policy_checkpoint and not isinstance(policy_checkpoint, dict):
                 raise ValueError("策略文件需要是完整 checkpoint 或历史对象，空值不能代替策略，也不会改用线性反馈。")
             bundle = select_with_context(PlannedSpec.from_dict(value), policy_checkpoint=policy_checkpoint)
@@ -66,7 +67,10 @@ def main(argv=None):
     except KeyboardInterrupt:
         print("任务已中断，尚未生成新的完整报告或确认可恢复的记录。 / Interrupted before a complete recovery record was confirmed.", file=sys.stderr)
         return 130
-    except (ValueError, OSError, UnicodeError, RecursionError) as exc:
+    except RecursionError as exc:
+        print(recursion_failure(exc), file=sys.stderr)
+        return 2
+    except (ValueError, OSError, UnicodeError) as exc:
         print(f"没有生成完整的新报告：{exc}", file=sys.stderr)
         return 2
     except (KeyError, TypeError, IndexError, AttributeError) as exc:

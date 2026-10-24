@@ -11,6 +11,7 @@ from .server import serve
 from .study import StudySpec, export_study, study
 from .controller_lab import ControllerLabSpec, controller_lab, export_controller_lab
 from .output_paths import check_new_output
+from .cli_input_errors import read_cli_input, read_cli_json, recursion_failure
 
 
 def export(result, destination):
@@ -69,9 +70,9 @@ def main():
             from .policy import evaluate_policy, export_evaluation, read_checkpoint
             from .policy_files import load_standalone_checkpoint
 
-            value, digest = read_checkpoint(arguments.checkpoint)
+            value, digest = read_cli_input(arguments.checkpoint, read_checkpoint)
             load_standalone_checkpoint(value)
-            config = Config.from_dict(json.loads(arguments.config.read_text(encoding="utf-8-sig"))) if arguments.config else None
+            config = Config.from_dict(read_cli_json(arguments.config)) if arguments.config else None
             seeds = [int(part.strip()) for part in arguments.seeds.split(",")]
             result = evaluate_policy(value, seeds, config)
             result["checkpoint_file_sha256"] = digest
@@ -79,32 +80,34 @@ def main():
             print("评测已保存；这次没有重新训练。 / Evaluation saved; no training.")
             print(str((arguments.out / "report.html").resolve()))
         elif arguments.command == "controller-lab":
-            spec = ControllerLabSpec.from_dict(json.loads(arguments.spec.read_text(encoding="utf-8-sig"))) if arguments.spec else ControllerLabSpec()
+            spec = ControllerLabSpec.from_dict(read_cli_json(arguments.spec)) if arguments.spec else ControllerLabSpec()
             result = controller_lab(spec, arguments.method)
             export_controller_lab(result, arguments.out)
             print(json.dumps({"output": str(arguments.out.resolve()), "methods": list(result["cases"]),
                               "report": str((arguments.out / "report.html").resolve())}, indent=2))
         elif arguments.command == "grid-check":
-            spec = GridSpec.from_dict(json.loads(arguments.spec.read_text(encoding="utf-8-sig")))
+            spec = GridSpec.from_dict(read_cli_json(arguments.spec))
             result = grid_check(spec)
             export_grid_check(result, arguments.out)
             print(json.dumps({"output": str(arguments.out.resolve()), "analysis": result["analysis"],
                               "summaries": result["summaries"],
                               "changes_from_finest": result["changes_from_finest"]}, indent=2))
         elif arguments.command == "study":
-            spec = StudySpec.from_dict(json.loads(arguments.spec.read_text(encoding="utf-8-sig")))
+            spec = StudySpec.from_dict(read_cli_json(arguments.spec))
             result = study(spec)
             export_study(result, arguments.out)
             print(json.dumps({"output": str(arguments.out.resolve()), "analysis": result["analysis"],
                               "pairs": len(result["pairs"]), "summaries": result["summaries"]}, indent=2))
         else:
-            config = Config.from_dict(json.loads(arguments.config.read_text(encoding="utf-8"))) if arguments.config else Config()
+            config = Config.from_dict(read_cli_json(arguments.config, encoding="utf-8")) if arguments.config else Config()
             result = compare(config)
             export(result, arguments.out)
             print(json.dumps({"output": str(arguments.out.resolve()), "protocol": result["protocol"],
                               "runs": [{"policy": run["policy"], "status": run["status"],
                                         "position_rmse": run["metrics"]["position_rmse"],
                                         "packets": run["packets"]} for run in result["runs"]]}, indent=2))
+    except RecursionError as exc:
+        parser.exit(2, f"SparsiLoop: {recursion_failure(exc)}\n")
     except (ValueError, OSError) as exc:
         parser.exit(2, f"event-control-lab: {exc}\n")
 
