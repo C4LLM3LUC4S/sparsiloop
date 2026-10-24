@@ -7,6 +7,8 @@ import sys
 from .planned_report import label
 from .planned_study import PlannedSpec, read_json
 from .planned_context import as_bundle, export_bundle, select_with_context, test_with_context
+from .export_recovery import ExportRecoveryError
+from .output_paths import check_new_output
 
 
 def main(argv=None):
@@ -27,9 +29,9 @@ def main(argv=None):
     rendering.add_argument("--out", required=True)
     args = parser.parse_args(argv)
     try:
-        output = Path(args.out).resolve()
-        if output.exists():
-            raise ValueError("输出目录已存在，请换一个新目录；旧结果不会覆盖")
+        output = Path(args.out)
+        check_new_output(output)
+        output = output.resolve()
         value, input_hash = read_json(args.spec if args.command == "select" else args.record)
         if args.command == "select":
             policy_checkpoint = read_json(args.policy_checkpoint)[0] if args.policy_checkpoint else None
@@ -58,6 +60,12 @@ def main(argv=None):
         print("下次复核可载入 selection-bundle.json，一并保留选择时的环境。")
         print(f"报告已保存：{output / 'report.html'}")
         return 0
+    except ExportRecoveryError as exc:
+        print(str(exc), file=sys.stderr)
+        return 130 if exc.interrupted else 2
+    except KeyboardInterrupt:
+        print("任务已中断，尚未生成新的完整报告或确认可恢复的记录。 / Interrupted before a complete recovery record was confirmed.", file=sys.stderr)
+        return 130
     except (ValueError, OSError, UnicodeError, RecursionError) as exc:
         print(f"没有生成完整的新报告：{exc}", file=sys.stderr)
         return 2

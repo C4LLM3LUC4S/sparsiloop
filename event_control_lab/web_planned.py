@@ -43,7 +43,7 @@ def pack(value):
         raise ValueError("完整选择记录超过网页的 8 MiB 限制，请用命令行保存和复核，或减少实验规模。")
     with tempfile.TemporaryDirectory(prefix="sparsiloop-planned-web-") as temporary:
         output = Path(temporary) / "report"
-        manifest = export_bundle(saved, output)
+        manifest = export_bundle(saved, output, recover_on_failure=False)
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path in sorted(output.iterdir()):
