@@ -1,6 +1,6 @@
 # 第一次使用 / Start here
 
-想回答“最多发这些消息，哪个门槛能满足误差要求？”时，可以先看[先选一个发送方案](docs/planned-study.md)。这个流程先保存候选和选择规则，再用预留条件复核；测试阶段不临时改门槛。
+第一次用，可以先打开网页，看少发一些消息会怎样影响控制结果。已经有具体任务的话，下面也列了对应入口。
 
 需要 Python 3.10+。下载本仓库的 Code → Download ZIP，**完整解压**，在项目文件夹打开终端：
 
@@ -10,7 +10,42 @@ python quickstart.py
 
 自动选择空闲本地端口并打开网页，不安装依赖、不联网下载、不修改现有环境。保持终端打开；停止时按 Ctrl+C。浏览器没有弹出时，手动打开打印的本地网址。只绑定 `127.0.0.1`。
 
-直接看 MFAC、ILC、强化学习案例：
+## 打开网页后，先做哪件事？
+
+| 你想做的事 | 从哪里开始 |
+| --- | --- |
+| 看少发消息会有什么影响 | 页面顶部“运行比较”，先改消息上限，再看误差和实际发送次数 |
+| 试 MFAC、ILC 或强化学习 | “试试 MFAC、ILC 和强化学习”，选一种方法后运行；参数与顶部比较分别设置 |
+| 在消息上限内选一个门槛，再复核 | “先选发送方案，再复核”，先定条件和候选，只运行选择阶段，再按原计划复核 |
+| 已有保存的 Q 策略，想换几组条件再测 | “保存的策略，拿出来再测一次”，载入完整文件、填新编号，只测试、不训练 |
+
+“运行比较”改变的是**什么时候发送测量**，不是训练新的控制器。选发送方案时，相同消息上限也不代表实际发送次数相同；结果要结合误差和消息数一起看。[选择与复核说明](docs/planned-study.md)会带你保存全部候选，再用事先预留的条件复核，测试时不临时换门槛。
+
+先别把网页各处的范围混在一起：
+
+- MFAC、ILC、强化学习案例和单独策略测试使用一阶教学模型，每步 20 ms、每次 0.2–2 秒。
+- 选择与复核也每步 20 ms，每次可设 0.2–8 秒。固定反馈支持一阶和位置—速度两种内置模型；保存的 Q 策略目前只支持一阶模型，并沿用训练时的时长和输入上限，不会自动扩展到 8 秒。
+- 网页任务有规模限制；自定义模型或其他时间设置使用已有 Python/命令行接口。各流程的具体限制见[网页实验](docs/web-recipes.md)。
+
+## 结果怎么看，离开前保存什么？
+
+先看这次有没有完整结束，再看误差和实际消息数。“报告已生成”不代表每次运行都成功，也不代表都达到原要求。选择阶段还没运行预留测试；强化学习训练成绩也不能代替测试成绩。
+
+点击当前结果的“下载完整报告 ZIP”，完整解压后打开 `report.html`，停止本地服务后仍能阅读。想下次接着做，请再保存对应文件：
+
+| 下一步要做什么 | 保存什么 |
+| --- | --- |
+| 第一次训练完，之后只测试这个策略 | “保存策略，下次开始测试”得到的 `policy-checkpoint.json` |
+| 接着已有评测、选择和复核做新任务 | 页面保留的最新 `policy-history.json`；待复核计划要先完成 |
+| 刚选完方案，关掉网页后再按原计划复核 | “保存选择记录，下次按原计划复核”得到的完整选择文件，同时保留选择阶段 ZIP |
+
+完整历史不能代替原选择记录。沿用完整历史的 Q 策略时，网页另存的选择记录叫 `selection-workflow.json`，选择 ZIP 中则叫 `policy-workflow.json`；固定反馈流程保存的是 `selection-bundle.json`。载入时按原文件类型继续，不要手动改摘要。具体文件位置见[跨流程接续说明](docs/policy-history.md)。
+
+重新打开网页后，第一次测试载入完整策略，后续接着做则载入最新完整历史，或点击“使用本页最新的策略与历史”。种子是这组随机数的编号。另开单独测试或新计划时换新编号，原计划复核仍用预留编号；“查看已用种子”列出当前文件已经记下的编号。页面不能自动找回其他设备或副本中的历史。
+
+## 想直接生成控制案例报告？
+
+也可以不用网页表单，运行：
 
 ```powershell
 python quickstart.py --mode controllers
@@ -26,15 +61,9 @@ python quickstart.py --mode controllers
 
 三个案例的条件不同，不能按分数直接排名。报告保留每轮结果和失败原因，完整公式见 [经典控制案例](docs/classic-controllers.md)。
 
-已经训练过，想换几个随机种子再测一次？用 `python -m event_control_lab evaluate-policy runs/controllers/policy-checkpoint.json --seeds 2001,2002 --out runs/new-test`。这里的 `runs/controllers` 要换成你实际保存报告的目录。这次不会重新训练，详见[保存策略再测试](docs/saved-policy.md)。
+已经有完整策略，想用命令行只测试、不训练，见[保存策略再测试](docs/saved-policy.md)；已有跨阶段完整历史时，使用[接续命令](docs/policy-history.md)，保留原来的阶段顺序。
 
 想换成自己的模型：先运行 `python -m examples.own_model_case --out runs/own-model`，打开新目录中的 `report.html`。报告会带你查看一个简化执行器在减少消息后的表现，再尝试三种控制方法。熟悉流程后，按[模型接入说明](docs/own-model.md)替换示例中的模型。先用已知输入检查计算结果，再比较控制效果。
-
-网页顶部的“运行比较”比较三种**发送策略**。想试 MFAC、ILC 或强化学习，点击页面上的“试试 MFAC、ILC 和强化学习”，选择方法、设置轮数，再点击“运行选中的实验”。两处是独立实验，参数分别设置。
-
-结果中会分开显示训练、ILC 轮次和测试。点击“下载完整报告 ZIP”，完整解压后打开 `report.html`，关闭服务后也能阅读。强化学习还可以另存完整策略；在“保存的策略，拿出来再测一次”中选择这个文件，填写新种子，只测试、不训练。当前页面会记住已用测试种子，下次使用请保存更新后的策略文件。
-
-网页使用内置一阶模型、20 ms 步长和 0.2–2 秒时域，限制每次实验规模。自定义模型、更多参数和更大实验继续使用 Python 接口或命令行。具体说明见[网页实验](docs/web-recipes.md)。
 
 ## 没有成功打开时
 
@@ -46,4 +75,10 @@ python quickstart.py --mode controllers
 
 ## English
 
-With Python 3.10+, extract the full repository and run `python quickstart.py`. It binds an available loopback port before opening your browser. No installation, account or additional dependency is required. Keep the terminal open; Ctrl+C stops the server. For static learning reports, run `python quickstart.py --mode controllers`; `--no-open` disables browser opening. Each report uses a fresh directory. These are explicit source-preview paths, not an installed-wheel claim; regular installation is `python -m pip install .`.
+With Python 3.10+, extract the full repository and run `python quickstart.py`. It binds an available loopback port before opening your browser. No installation, account or additional dependency is required. Keep the terminal open; Ctrl+C stops the server. The top comparison changes measurement-sending rules. The controller section runs MFAC, ILC and Q-learning separately; the planned section first selects a sending schedule and then tests the saved choice under the reserved conditions.
+
+Controller recipes and standalone policy tests use the scalar teaching model, 20 ms steps and 0.2–2 s horizons. Planned tasks use 20 ms steps and allow 0.2–8 s: fixed feedback supports both built-in models, while frozen Q policies remain scalar and retain their trained horizon and input limit. These ranges do not change an existing checkpoint or override the workload limits. See [web workflows](docs/web-recipes.md).
+
+Before closing the page, save the full report ZIP. For the first policy test, keep the full `policy-checkpoint.json`; for subsequent tasks, keep the latest complete `policy-history.json`. Finish a pending plan with its original choice, not with the history alone. A web-saved history-workflow choice is `selection-workflow.json`; inside a selection ZIP it is `policy-workflow.json`. Fixed-feedback choices use `selection-bundle.json`. See [file purposes and continuation](docs/policy-history.md). Failed runs remain in the reports; a generated report is not evidence that every requirement was met.
+
+For static learning reports, run `python quickstart.py --mode controllers`; `--no-open` disables browser opening and every report uses a new directory. To use your own model, follow [the model guide](docs/own-model.md). The source entry runs without installing the package; regular package installation is `python -m pip install .`.
