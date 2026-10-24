@@ -26,7 +26,7 @@ function page() {
  const scope={window,document:{querySelector:get,createElement:element},TextEncoder,
   CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},
   download:(name,content,type)=>downloads.push({name,content,type}),
-  fetch:async(url,options)=>options?{ok:true,json:async()=>response}:{ok:true,json:async()=>({mfac:{phi0:1,rho:1}})}};
+  fetch:async(url,options)=>options?{ok:true,json:async()=>response}:{ok:true,json:async()=>url==='/api/planned/default'?{config:{}}:{mfac:{phi0:1,rho:1}}}};
  const context=vm.createContext(scope), folder=path.join(__dirname,'../event_control_lab/web');
  vm.runInContext(fs.readFileSync(path.join(folder,'policy-memory.js'),'utf8'),context);
  window.labUI.rememberPolicy=value=>{
@@ -40,6 +40,14 @@ function page() {
   async showPlan(result){response=result;const file=get('#planned-test-settings').elements.selection;
    file.files=[{name:'selection.json',size:100,text:async()=>JSON.stringify(result.record.selection)}];
    await file.handlers.change();await get('#planned-test-settings').handlers.submit({preventDefault(){}});},
+  async showSelection(result){await new Promise(resolve=>setImmediate(resolve));response=result;
+   const input=get('#planned-settings').elements;
+   for(const name of ['duration','budget','initial_position','initial_velocity','delay_steps','loss_probability',
+    'measurement_noise','process_noise','heartbeat','threshold','kp','kd','input_limit','state_limit','rmse_limit'])input[name].value='1';
+   input.absolute_thresholds.value='0.1';input.relative_thresholds.value='';
+   input.selection_seeds.value='5001';input.test_seeds.value='6001';input.previously_used_seeds.value='';
+   await get('#planned-settings').handlers.submit({preventDefault(){}});},
+  text(selector){const visit=node=>[node,...node.children.flatMap(visit)];return visit(get(selector)).map(node=>node.textContent).join('\n');},
   find(selector,label){const visit=node=>[node,...node.children.flatMap(visit)];
    return visit(get(selector)).find(node=>node.tag==='button'&&node.textContent===label);}};
 }
@@ -114,4 +122,50 @@ test('showing a recipe without a policy does not discard the reusable saved poli
  assert.match(p.get('#saved-policy-source').textContent,/已载入本页最新/);
  assert.notEqual(p.get('#saved-policy-status').className,'error');
  assert.equal(p.find('#saved-policy-output','保存完整历史，下次接着做'),undefined);
+});
+
+function selectedResult(eligible=true) {
+ const saved=history([{phase:'selection',selected_id:eligible?'event':null,plan:{test_seeds:[6001]},seeds:[5001]}]);
+ const value=plannedResult(saved), choice=value.record.selection;
+ choice.selected_id=eligible?'event':null;choice.selection_runs=[];
+ choice.selection_summaries=eligible?[{id:'event',policy:'absolute',threshold:0.1,eligible:true,complete:1,requested:1}]:[];
+ return {...value,mode:'selection',record:choice};
+}
+
+test('a pending selection keeps the original choice as the next action and withholds the standalone shortcut',async()=>{
+ const p=page(), value=selectedResult();await p.showSelection(value);
+ const choice=p.find('#planned-selection-output','保存选择记录，下次按原计划复核');assert.ok(choice);
+ choice.handlers.click();assert.deepEqual(JSON.parse(p.downloads[0].content),value.record);
+ assert.ok(p.find('#planned-selection-output','保存完整历史（还有待复核计划）'));
+ assert.equal(p.find('#planned-selection-output','载入上方的单独测试'),undefined);
+ assert.equal(p.find('#planned-selection-output','保存兼容策略文件（不含完整阶段顺序）'),undefined);
+ assert.match(p.text('#planned-selection-output'),/完整历史不能代替/);
+});
+
+test('a selection with no eligible candidate does not invent a pending test',async()=>{
+ const p=page();await p.showSelection(selectedResult(false));
+ assert.ok(p.find('#planned-selection-output','保存完整历史，做下一个任务'));
+ assert.equal(p.find('#planned-selection-output','保存完整历史（还有待复核计划）'),undefined);
+ assert.match(p.text('#planned-selection-output'),/没有待运行的复核/);
+});
+
+test('replaying an old selection follows the retained completed history without replacing its saved choice',async()=>{
+ const p=page(), selected=selectedResult();
+ const completed=history([...selected.policy_history.events,{phase:'test',plan:{test_seeds:[6001]},seeds:[6001]}]);
+ await p.show(result(completed));await p.showSelection(selected);
+ p.find('#planned-selection-output','保存完整历史，做下一个任务').handlers.click();
+ assert.deepEqual(JSON.parse(p.downloads[0].content),completed);
+ assert.ok(p.find('#planned-selection-output','载入上方的单独测试'));
+ p.find('#planned-selection-output','保存选择记录，下次按原计划复核').handlers.click();
+ assert.deepEqual(JSON.parse(p.downloads[1].content),selected.record);
+});
+
+test('a later pending plan stays pending when an earlier completed result is shown again',async()=>{
+ const p=page(), earlier=history(plannedPhases);
+ const later=history([...plannedPhases,{phase:'selection',selected_id:'later',plan:{test_seeds:[6002]},seeds:[5002]}]);
+ await p.show(result(later));await p.showPlan(plannedResult(earlier));
+ const save=p.find('#planned-test-output','保存完整历史（还有待复核计划）');assert.ok(save);
+ save.handlers.click();assert.deepEqual(JSON.parse(p.downloads[0].content),later);
+ assert.equal(p.find('#planned-test-output','载入上方的单独测试'),undefined);
+ assert.match(p.text('#planned-test-output'),/那次选择/);
 });
