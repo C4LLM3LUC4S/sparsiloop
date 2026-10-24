@@ -12,13 +12,23 @@
 
 ## 算完了，报告却没能保存完整
 
-本地选择、复核和完整历史命令会先保存一份完整计算记录。之后写报告出错或被中断时，终端会告诉你 **完整计算记录已保留**，给出实际文件位置和重绘命令。先修好磁盘空间或保存位置，再复制这条命令运行；它会使用本次的 Python，把报告写到一个新目录，不重新训练、选择方案或运行测试。
+本地选择、复核、完整历史，以及 `evaluate-policy` 的独立评测命令，会先保存一份完整计算记录。之后写报告出错或被中断时，终端会告诉你 **完整计算记录已保留**，给出实际文件位置和重绘命令。先修好磁盘空间或保存位置，再复制这条命令运行；它会使用本次的 Python，把报告写到一个新目录，不重新训练、选择方案或运行测试。
 
-保留提示中的 `sparsiloop-recovery-...json`。它按原格式保存结果、策略与已用编号、原选择和运行环境；不要手动改摘要或把它当成一份新实验。重绘后的报告只另记这次生成报告的环境，原来未知的内容仍是未知。
+保留提示中的 `sparsiloop-recovery-...json`。它按原格式保存结果及其已有的策略、编号、选择和运行环境；不要手动改摘要或把它当成一份新实验。选择和完整历史报告会单列本次重绘环境；旧独立评测没有记录的执行环境仍然未知，不会用当前环境补齐。
+
+独立评测保留的是完整 `evaluation.json`，包含原策略、两套对照的全部结果、失败和无法计算的指标。只有 `controllers.json` 视图、Q 表或 checkpoint，不能替代它。即使部分 HTML 或 CSV 已出现，也要先确认完整记录已保留，不能据此认定保存已经完成。
+
+要重绘一份以前完整保存的独立评测，在安装好对应包后运行：
+
+```powershell
+.\.venv\Scripts\python.exe -I -m event_control_lab.evaluation_report render "old results/evaluation.json" --out "reports/redrawn-evaluation"
+```
+
+这个入口会核对原策略来源、时钟、编号、完整比较条件和已保存的随机输入，保留原指标，不重新计算它们。校验不认证记录来源或结果质量。它读取整份本地评测到内存，保存时也会读回核对；没有借用 checkpoint 的 20 MiB 或计划记录的 64 MiB 上限，也不承诺任意大小都能处理。保留和读取要有足够的本地磁盘与内存；旧网页请求和计算工作量限制继续适用。
 
 如果连这份记录本身都没写成功，程序不会说已经保留了可恢复文件。先留住原输入和已有文件，检查空间与权限。报告正常写完时，备用记录会自动清理；若清理受阻，终端会列出仍保留的副本，已经完成的报告仍然有效。
 
-这条恢复路径适用于本地命令和 Python 导出。网页临时下载没有承诺留下本地恢复文件；下载失败时先保留已有文件和页面，按错误提示处理，不要假定本次新报告已经保存。
+这条恢复路径适用于本地命令和对应的安全 Python 导出入口。独立评测的安全入口为 `event_control_lab.evaluation_report.export_evaluation`；旧 `policy.export_evaluation` 保留原合同。网页临时下载没有承诺留下本地恢复文件；下载失败时先保留已有文件和页面，按错误提示处理，不要假定本次新报告已经保存。
 
 ## 按下一步选文件
 
@@ -29,6 +39,7 @@
 | 继续单独测试或做新计划 | 最新 `policy-history.json`，同时保留完整阶段 ZIP；还有待复核计划就先完成它 |
 | 只有第一次训练好的策略 | 完整 `policy-checkpoint.json`；它不是 Q 表截图，也没有完整的后续阶段顺序 |
 | 只重绘完整历史中的这一步 | 该阶段的 `policy-workflow.json`，不要把测试结果当成原选择 |
+| 只重绘独立策略评测 | 原完整 `evaluation.json`，或终端保留的同类型完整恢复文件 |
 | 只重绘原固定反馈报告 | 原 `selection-bundle.json` 或 `test-bundle.json`；旧原始数值 JSON 仍按原入口读取 |
 
 复核阶段的网页 ZIP 另外保留原选择 `selection-workflow.json`，当前 `policy-workflow.json` 则保存这次复核结果。只有历史或兼容 checkpoint 不能代替完整选择；程序也不会自动合并另一副本上的历史。更多文件位置见[完整历史接续](policy-history.md)。
@@ -66,4 +77,6 @@ Keep the complete report ZIP, original choice, latest history, configuration and
 
 The release ZIP contains exact public source, `BUILD_INFO.json` and a per-member manifest. Keep its release information and checksums as well. Package versions, legacy `engine_version` and behavior fingerprints cannot identify an unrecorded development checkout. Archive custom model code and dependencies yourself; no private files are automatically collected. Use a fresh environment and output folder. The two `render` examples above only redraw their respective saved formats; they do not train or simulate, fill missing history, or replace unknown execution environments. Checksums and declared histories establish consistency, not authenticated origin, independence or stability.
 
-Local planned/history exports retain a complete typed recovery record before rendering. A later I/O failure or interruption prints the actual file and a redraw command using the current interpreter. Fix the save location and run that command into a new folder; it does not rerun training, selection or tests. Keep the recovery file and original input. A failed initial recovery write is not advertised as recoverable. Successful exports remove the temporary recovery copy unless cleanup is blocked, in which case the complete report remains valid and the retained copy is reported. This local-file contract does not apply to ephemeral web-download staging.
+Local planned/history exports and the standalone `evaluate-policy` command retain a complete typed recovery record before rendering. A later I/O failure or interruption prints the actual file and a redraw command using the current interpreter. Fix the save location and run that command into a new folder; it does not rerun training, selection or tests. Keep the recovery file and original input. A failed initial recovery write or readback is not advertised as recoverable. Successful exports remove the temporary copy unless cleanup is blocked, in which case the complete report remains valid and the retained copy is reported. This local contract does not apply to ephemeral web downloads or change the legacy Python exporter.
+
+For a complete standalone result, use `python -m event_control_lab.evaluation_report render evaluation.json --out NEW_FOLDER`. The safe Python entry is `evaluation_report.export_evaluation`. Its reader checks saved declarations and original source/trace consistency without recalculating metrics. It loads the full local result into memory and verifies a saved copy with that same reader; the checkpoint/planned byte caps are not reused as an evaluation-size guarantee. Missing original execution environments remain unknown. Checks are consistency checks, not provenance or quality certification.

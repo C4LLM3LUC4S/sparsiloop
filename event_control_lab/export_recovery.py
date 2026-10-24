@@ -9,7 +9,8 @@ import sys
 import tempfile
 
 
-MODULES = {"planned": "event_control_lab.planned_study", "history": "event_control_lab.policy_journal"}
+MODULES = {"planned": "event_control_lab.planned_study", "history": "event_control_lab.policy_journal",
+           "evaluation": "event_control_lab.evaluation_report"}
 
 
 def quote_path(value):
@@ -46,8 +47,8 @@ def discard(record):
 
 
 @contextmanager
-def recovery_record(value, destination, kind, *, enabled=True):
-    if type(enabled) is not bool or kind not in MODULES:
+def recovery_record(value, destination, kind, *, enabled=True, verify=None):
+    if type(enabled) is not bool or kind not in MODULES or verify is not None and not callable(verify):
         raise ValueError("invalid export recovery option")
     if not enabled:
         yield None
@@ -64,6 +65,8 @@ def recovery_record(value, destination, kind, *, enabled=True):
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
+        if verify is not None:
+            verify(record)
     except BaseException:
         try:
             os.close(descriptor)

@@ -19,6 +19,18 @@ python -m event_control_lab evaluate-policy runs/training/policy-checkpoint.json
 
 程序会保存完整的 `evaluation.json`、汇总和轨迹 CSV。JSON 包含原策略、训练条件和种子、本次全部结果，以及测试前后的策略摘要。原文件只读，输出目录必须是新目录。
 
+## 算完后保存出错，怎么办？
+
+先看终端有没有给出“完整计算记录已保留”和实际文件位置。有的话，保留那份 JSON，修好保存位置后复制打印的命令重绘到新目录；它不会重新测试或训练，也不需要换一组种子。部分 HTML 或 CSV 已出现，不代表完整评测已经保存。
+
+以前已经完整保存的 `evaluation.json` 也能只重绘：
+
+```sh
+python -m event_control_lab.evaluation_report render runs/new-test/evaluation.json --out runs/redrawn-test
+```
+
+这里需要完整原评测，checkpoint、Q 表和 `controllers.json` 视图不能代替它。原策略、编号、随机输入、失败和无法计算的指标会保留。读取和回读整份评测需要本地内存；若最初的完整副本都没能保存或读回，程序不会承诺可以恢复。详见[保存和源码恢复](source-recovery.md)。
+
 ## 哪些条件可以换？
 
 默认沿用保存时的测试设置，按新种子重新生成初始位置和外部随机输入。想改变延迟、丢包、噪声、发送上限或门槛，可把 checkpoint 中的 `evaluation_config` 保存为一个配置 JSON，再加 `--config your-config.json`。结果会记录完整配置；换了条件后，不应把差异都归因于策略。
@@ -41,6 +53,8 @@ python -m event_control_lab evaluate-policy runs/training/policy-checkpoint.json
 从计划结果转来的 checkpoint 保留训练、旧评测、开发及选择/测试的全部已知编号。上面的旧命令只接续编号列表；想保留后来的完整阶段顺序，请用[完整历史接续](policy-history.md)或当前网页。单独测试按种子生成初态，并增加固定反馈等对照，不能当成原计划的固定初态复核。请保留最新完整历史和每步结果，不要回到旧文件重复使用刚测过的编号。
 
 ## English
+
+If a local standalone save fails after a complete recovery copy was confirmed, keep the printed JSON and run its redraw command into a fresh directory. No new training, evaluation or seeds are used. An existing complete `evaluation.json` can also be redrawn with `python -m event_control_lab.evaluation_report render FILE --out NEW_FOLDER`. A partial report, raw Q table or checkpoint is not a complete evaluation result; the full local record is read into memory. This does not extend the temporary web-download contract.
 
 If you selected `policy-history.json`, keep it for the planned workflow. For standalone testing, expand the alternative-testing section in the planned web result to load or save its compatible `policy-checkpoint.json`; the complete ZIP contains the same file. Loading does not run an experiment. The checkpoint retains all known used seeds, while phase names remain in the original history. Preserve both the history and the new standalone output. Standalone evaluation samples initial states by seed and adds references; it is not a rerun of the fixed-initial-state plan. New standalone results are not automatically merged into that earlier phase history.
 
