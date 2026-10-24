@@ -9,7 +9,7 @@ from threading import BoundedSemaphore
 from .engine import Config, compare
 from .study import StudySpec, study
 from .web_recipes import default_specification, error_message, run_recipes, test_saved_policy
-from . import web_planned
+from . import __version__, web_planned
 
 
 WEB = Path(__file__).with_name("web")
@@ -41,7 +41,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/default":
             return self.respond(200, json.dumps(asdict(Config())).encode())
         if self.path == "/api/health":
-            return self.respond(200, b'{"status":"ok","version":"0.0.1"}')
+            return self.respond(200, json.dumps({"status": "ok", "version": __version__}).encode())
         if self.path == "/api/controllers/default":
             return self.respond(200, json.dumps(default_specification()).encode())
         if self.path == "/api/planned/default":
