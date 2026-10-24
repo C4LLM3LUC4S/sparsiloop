@@ -130,7 +130,7 @@ class ExportRecoveryTests(unittest.TestCase):
             self.assertEqual(status, 130)
             self.assertNotIn("Traceback", error.getvalue())
             record = next(root.glob("sparsiloop-recovery-*.json"))
-            self.assertIn(str(record), error.getvalue())
+            self.assertIn(str(record.resolve()), error.getvalue())
             self.assertEqual(json.loads(record.read_text(encoding="utf-8")), self.workflow)
             self.assertEqual(source.read_bytes(), original)
 
