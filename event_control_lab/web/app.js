@@ -18,7 +18,7 @@ function currentConfig(){
 }
 function setBusy(value){
  busy=value;
- document.querySelectorAll("form input,form select,form button").forEach(node=>node.disabled=value);
+ document.querySelectorAll("form input,form select,form button").forEach(node=>node.disabled=value || node.dataset.locked==="true");
 }
 window.labUI={config:currentConfig,setBusy,isBusy:()=>busy};
 async function run(event){

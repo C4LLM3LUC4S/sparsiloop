@@ -90,6 +90,7 @@ server = ThreadingHTTPServer(("127.0.0.1", 0), QuietHandler)
 worker = Thread(target=server.serve_forever, daemon=True)
 worker.start()
 api_checks = {}
+frozen_web_checks = {}
 web_saved_bundle = None
 try:
     for route, payload, expected in (("/api/compare", asdict(config), single),
@@ -138,6 +139,28 @@ try:
                         assert as_bundle(json.loads(archive.read("test-bundle.json")))["result"] == result["record"]
         finally:
             connection.close()
+    frozen_saved = None
+    for phase, payload, expected in (
+        ("select", {"spec": asdict(frozen_spec), "policy_checkpoint": checkpoint(learning)}, frozen_choice["result"]),
+        ("test", None, frozen_test["result"]),
+    ):
+        if phase == "test":
+            payload = {"selection": frozen_saved}
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=10)
+        try:
+            connection.request("POST", "/api/planned/" + phase, body=json.dumps(payload))
+            response = connection.getresponse()
+            assert response.status == 200, (phase, response.status)
+            value = json.loads(response.read())
+            assert value["record"] == json.loads(json.dumps(expected))
+            with zipfile.ZipFile(io.BytesIO(base64.b64decode(value["archive_base64"]))) as archive:
+                assert archive.testzip() is None
+                assert json.loads(archive.read("policy-history.json")) == value["record"]["policy_after"]
+                if phase == "select":
+                    frozen_saved = json.loads(archive.read("selection-bundle.json"))
+            frozen_web_checks[phase] = True
+        finally:
+            connection.close()
 finally:
     server.shutdown()
     server.server_close()
@@ -161,6 +184,7 @@ print(json.dumps({
     "frozen_planned": {"selection": frozen_choice["result"], "test": frozen_test["result"]},
     "custom_model": {"compare": custom_compare, "study": custom_study, "controller_lab": custom_learning},
     "installed_http_api_matches_direct_calls": api_checks,
+    "installed_web_frozen_planned": frozen_web_checks,
 }))
 '''
 
@@ -354,6 +378,7 @@ def main():
             "extracted_local_model_separate_selection_and_test": True,
             "installed_frozen_policy_planned_cli_api_parity": True,
             "frozen_policy_history_and_original_choice_preserved": True,
+            "installed_web_frozen_planned": installed["installed_web_frozen_planned"],
             "extracted_own_model_recipe_and_provenance": True,
             "installed_http_api": installed["installed_http_api_matches_direct_calls"],
             "fresh_source_tests_passed": int(count.group(1)),

@@ -190,11 +190,11 @@ class PlannedPolicyTests(unittest.TestCase):
                 self.assertNotIn("这里只使用固定反馈控制器", page)
                 self.assertIn("policy-history.json", page)
 
-    def test_browser_refuses_new_record_and_legacy_behavior_is_unchanged(self):
+    def test_web_reuses_same_frozen_record_and_legacy_behavior_is_unchanged(self):
         saved = context.select_with_context(self.spec(), policy_checkpoint=self.saved)
-        with patch.object(planned, "simulate", side_effect=AssertionError("browser ran")), \
-                self.assertRaisesRegex(ValueError, "本地 test 命令"):
-            web_test({"selection": saved})
+        with patch.object(QTable, "update", side_effect=AssertionError("web trained")):
+            response = web_test({"selection": saved})
+        self.assertEqual(response["record"], context.test_with_context(saved)["result"])
         self.assertEqual(context.select_with_context(self.spec())["result"], select_schedule(self.spec()))
         with self.assertRaisesRegex(ValueError, "不能更换模型"):
             context.test_with_context(saved, plant=object())

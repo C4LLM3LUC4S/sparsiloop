@@ -1,6 +1,6 @@
 # 不改代码，从网页做一次控制实验
 
-运行 `python quickstart.py`，打开终端显示的网址。这个页面有三种用途：上方比较发送策略，中间运行 MFAC、ILC 和强化学习，下方加载保存的策略。各部分的参数分别设置，改上方的延迟不会悄悄改变下面的训练。
+运行 `python quickstart.py`，打开终端显示的网址。页面可以比较发送策略、运行 MFAC/ILC/强化学习、单独重测保存的策略，也能先选发送方案再复核。各部分的参数分别设置，改上方的延迟不会悄悄改变下面的训练。
 
 ## 先从 ILC 开始
 
@@ -26,6 +26,8 @@
 
 ## 没有成功时
 
+想固定已经训练好的策略，只选择发送门槛？在“先选发送方案，再复核”里选择保存的 Q 策略，点击“使用本页最新的策略与历史”，或载入完整策略文件。原时钟和输入上限会锁定，当前计划初态仍由你声明；选择和测试不训练。每步成功后历史继续保留，重复编号会被拒绝。具体操作及这条流程的 0.2–8 秒范围见[冻结策略选择与复核](planned-policy.md)。
+
 - 参数或策略文件不合适：新实验没有开始或没有生成新结果，之前的结果仍显示。先读提示，再修改对应条件；旧下载仍然保留。
 - 文件超过 2 MiB、时间尺度不符合网页范围：使用[命令行加载](saved-policy.md)，网页不会自动缩短时域或删掉内容。
 - 另一个标签页正在运行：等它完成后再试。同一服务一次只运行一个经典控制任务。
@@ -34,5 +36,7 @@
 网页每步为 20 ms，每次模拟 0.2–2 秒，最多 30 轮 ILC、128 个训练种子、5 个测试种子，总仿真区间不超过 20000。接口只接受白名单方法、JSON 设置和完整策略文件，不执行上传的 Python 代码。更多模型、参数或更大实验请用已有 Python/命令行接口。
 
 ## English
+
+To select a communication schedule for the frozen scalar Q policy, use the planned form's saved-policy mode. It reuses the preceding training result or loads the full checkpoint/history, keeps the trained clock and input limit, then runs only the declared selection and test phases. See [the complete workflow](planned-policy.md). Training parameters and policies are not selected using these tests.
 
 Open the local web lab with `python quickstart.py`. The controller section configures built-in MFAC, repeated-trial ILC and Q-learning recipes separately from the network comparison above it. Training rows are folded away from test results. Download and fully extract the report ZIP to read it offline with all raw records and failures retained. Load a complete checkpoint in the saved-policy section for evaluation without training; save the updated checkpoint to carry test-seed history into the next session. The web limits are narrower than the CLI: scalar model, 20 ms steps, 0.2–2 s horizons and at most 20000 simulation intervals. It never runs uploaded Python code.

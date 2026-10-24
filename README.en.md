@@ -1,8 +1,8 @@
 # SparsiLoop · Event-triggered control lab
 
-Already trained a scalar Q policy? [Choose a communication schedule with the saved policy](docs/planned-policy.md), then test the fixed choice without retraining. The full checkpoint and known seed history travel with the records so a later plan can reject reuse.
+Already trained a scalar Q policy? [Choose a communication schedule with the saved policy](docs/planned-policy.md) in the local web form or CLI, then test the fixed choice without retraining. Reuse the preceding web training result or load a full checkpoint/history. The policy and known seed history travel with the records so a later plan can reject reuse.
 
-Need to choose a communication threshold before inspecting test outcomes? Open the local web page, follow “先选发送方案，再复核”, and configure, save and test a choice without switching to a terminal. The [planned selection workflow](docs/planned-study.md) also supports separate CLI commands. Both paths save every candidate and failure, then test only the declared seeds without reselection. The web path uses built-in plants, fixed feedback, a 20 ms step, 0.2–8 seconds, at most 20,000 potential intervals and 8 MiB requests.
+Need to choose a communication threshold before inspecting test outcomes? Open the local web page, follow “先选发送方案，再复核”, and configure, save and test a choice without switching to a terminal. The [planned selection workflow](docs/planned-study.md) also supports separate CLI commands. Both paths save every candidate and failure, then test only the declared seeds without reselection. The web path uses built-in plants with fixed feedback or a saved scalar Q policy, a 20 ms step, 0.2–8 seconds, at most 20,000 potential intervals and 8 MiB complete requests. Policy input files remain limited to 2 MiB.
 
 Save a selection/test bundle to carry minimal execution-environment information to another machine. Reports separate selection, testing and report rendering; missing facts in old records stay unknown. The `render` command redraws saved results without rerunning seeds. See the [environment and redraw guide](docs/planned-study.md#换一台电脑时先看环境记录).
 
