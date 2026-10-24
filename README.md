@@ -8,10 +8,10 @@ A local lab to compare event-triggered and periodic control under communication 
 
 [English guide](README.en.md) · [第一次使用](START_HERE.md) · [名称与简介](BRANDING.md)
 
-**当前是 `0.1.0a1` alpha 发行版。** 目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
+**当前是 `0.1.0a2` alpha 发行版。** 目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
 
 
-**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a1/SparsiLoop-0.1.0a1.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a1) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
+**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a2/SparsiLoop-0.1.0a2.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a2) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
 
 ## 从你要做的事开始
 

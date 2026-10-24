@@ -2,7 +2,9 @@
 
 第一次用，可以先打开网页，看少发一些消息会怎样影响控制结果。已经有具体任务的话，下面也列了对应入口。
 
-需要 Python 3.10+。下载本仓库的 Code → Download ZIP，**完整解压**，在项目文件夹打开终端：
+当前版本是 **0.1.0a2 alpha**。需要 Python 3.10+。首次使用建议下载[完整离线包](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a2/SparsiLoop-0.1.0a2.zip)，完整解压后先按包内顶层 `START_HERE.md` 安装；[发行说明和校验](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a2)列出全部文件。
+
+使用源码入口时，进入离线包的 `source/`，或将本仓库的 Code → Download ZIP **完整解压**，在含有 `quickstart.py` 的项目文件夹打开终端：
 
 ```powershell
 python quickstart.py
@@ -29,7 +31,7 @@ python quickstart.py
 
 ## 结果怎么看，离开前保存什么？
 
-先看这次有没有完整结束，再看误差和实际消息数。“报告已生成”不代表每次运行都成功，也不代表都达到原要求。选择阶段还没运行预留测试；强化学习训练成绩也不能代替测试成绩。
+先看这次有没有完整结束，再看误差和实际消息数。选择报告里的“是哪次运行没满足要求？”按原候选和编号列出超标、未完整结束或无法判断的原因；展开后再决定下一步，不用从汇总分数猜。“报告已生成”不代表每次运行都成功，也不代表都达到原要求。选择阶段还没运行预留测试；强化学习训练成绩也不能代替测试成绩。
 
 点击当前结果的“下载完整报告 ZIP”，完整解压后打开 `report.html`，停止本地服务后仍能阅读。想下次接着做，请再保存对应文件：
 
@@ -77,7 +79,7 @@ python quickstart.py --mode controllers
 
 ## English
 
-With Python 3.10+, extract the full repository and run `python quickstart.py`. It binds an available loopback port before opening your browser. No installation, account or additional dependency is required. Keep the terminal open; Ctrl+C stops the server. The top comparison changes measurement-sending rules. The controller section runs MFAC, ILC and Q-learning separately; the planned section first selects a sending schedule and then tests the saved choice under the reserved conditions.
+For version **0.1.0a2 alpha**, download the [complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a2/SparsiLoop-0.1.0a2.zip) and follow its top-level `START_HERE.md`. For a source preview with Python 3.10+, enter the bundle's `source/` directory or extract the full repository and run `python quickstart.py`. It binds an available loopback port before opening your browser. No installation, account or additional dependency is required. Keep the terminal open; Ctrl+C stops the server. The top comparison changes measurement-sending rules. The controller section runs MFAC, ILC and Q-learning separately; the planned section first selects a sending schedule and then tests the saved choice under the reserved conditions.
 
 Controller recipes and standalone policy tests use the scalar teaching model, 20 ms steps and 0.2–2 s horizons. Planned tasks use 20 ms steps and allow 0.2–8 s: fixed feedback supports both built-in models, while frozen Q policies remain scalar and retain their trained horizon and input limit. These ranges do not change an existing checkpoint or override the workload limits. See [web workflows](docs/web-recipes.md).
 
