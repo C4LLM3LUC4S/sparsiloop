@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0a4 — 2026-10-25
+
+- Local standalone `evaluate-policy` now saves and fsyncs the complete typed evaluation, then reads it back before exporting reports. A later I/O error or interruption retains a usable record and prints a same-interpreter redraw command; redraw does not train, evaluate or simulate.
+- The new `evaluation_report` renderer checks the original checkpoint/source, declared conditions, saved random input and complete run structure without recomputing metrics. Initial copy/readback failure never promises recovery. The full local JSON is read into memory; no large-scale memory guarantee is added. Legacy Python exporters and temporary web exports retain their previous contracts.
+- JSON input depth errors identify the actual file and provide complete-file recovery guidance. Later computation or export recursion stays a separate, neutral error. Safe parser or schema rejection is accepted across supported Python versions.
+- Numerical, policy and history source identities and all old releases remain unchanged.
+
 ## 0.1.0a3 — 2026-10-24
 
 - Check existing output and invalid parent paths before loading saved inputs or starting computation across local entry points; preserve previous reports and give a fresh-path retry.
