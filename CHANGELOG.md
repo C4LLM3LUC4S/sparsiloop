@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0a5 — 2026-10-25
+
+- Give local safe standalone reports three distinct next steps: read saved output, redraw the complete evaluation without computation, or start a new test from the updated checkpoint and unused IDs. Keep the separate full phase history when it exists.
+- Replace the generic controller-lab advice at the end of this local report with commands and file links suited to its actual standalone stage. Numerical records, failures/null, source identities and the legacy Python/web exporters keep their existing behavior.
+- Include the guidance and matching source in new offline assets, preserving all earlier alphas. Developer recovery checks are not independent adoption or measured human benefit.
+
 ## 0.1.0a4 — 2026-10-25
 
 - Local standalone `evaluate-policy` now saves and fsyncs the complete typed evaluation, then reads it back before exporting reports. A later I/O error or interruption retains a usable record and prints a same-interpreter redraw command; redraw does not train, evaluate or simulate.

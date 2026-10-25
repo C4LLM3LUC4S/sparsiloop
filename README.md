@@ -8,10 +8,10 @@ A local lab to compare event-triggered and periodic control under communication 
 
 [English guide](README.en.md) · [第一次使用](START_HERE.md) · [名称与简介](BRANDING.md)
 
-**当前是 `0.1.0a4` alpha 发行版。** 本地独立策略评测保存失败、终端确认已保留完整记录时，可按提示重绘，不用重新训练或测试。输入文件读不完时，也会说明怎样找回合适的完整文件。 目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
+**当前是 `0.1.0a5` alpha 发行版。** 独立策略评测的本地报告会直接说明：怎样看旧结果、用完整记录只重绘报告，或用更新后的策略另测新条件。保存失败时，终端确认保留完整记录后仍可按提示恢复。 目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
 
 
-**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a4/SparsiLoop-0.1.0a4.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a4) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
+**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a5/SparsiLoop-0.1.0a5.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a5) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
 
 ## 从你要做的事开始
 
