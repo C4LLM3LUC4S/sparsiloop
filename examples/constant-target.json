@@ -1,0 +1,23 @@
+{
+  "target": 1.0,
+  "config": {
+    "plant": "double_integrator",
+    "duration": 1.0,
+    "dt": 0.02,
+    "budget": 20,
+    "delay_steps": 1,
+    "loss_probability": 0.05,
+    "measurement_noise": 0.005,
+    "process_noise": 0.01,
+    "threshold": 0.06,
+    "relative_threshold": 0.15,
+    "heartbeat": 0.2,
+    "kp": 2.0,
+    "kd": 2.0,
+    "input_limit": 4.0,
+    "state_limit": 20.0,
+    "initial_position": 0.0,
+    "initial_velocity": 0.0,
+    "seed": 20261025
+  }
+}
