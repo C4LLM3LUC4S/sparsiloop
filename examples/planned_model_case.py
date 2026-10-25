@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 
 from event_control_lab.planned_context import export_bundle, select_with_context, test_with_context
+from event_control_lab.output_paths import check_new_output
 from event_control_lab.planned_study import PlannedSpec, read_json
 from examples.own_model_case import actuator_model
 
@@ -27,9 +28,8 @@ def main(argv=None):
         command.add_argument("--out", required=True)
     args = parser.parse_args(argv)
     try:
+        check_new_output(args.out)
         output = Path(args.out).resolve()
-        if output.exists():
-            raise ValueError("输出目录已存在，请另选新目录；原记录会保留。")
         value, input_hash = read_json(args.spec if args.command == "select" else args.record)
         plant = actuator_model(args.decay, args.gain)
         if args.command == "select":
