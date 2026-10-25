@@ -6,10 +6,10 @@ Try it on your computer: set a message limit, delay and loss probability, then c
 
 [中文](README.md) · [Start here](START_HERE.md) · [Protocol](docs/protocol.md)
 
-**Version `0.1.0a6`: the source-only own-model selection/test example checks its output path before reading input or constructing the model.** Retry with the original plan in a fresh directory; standalone report guidance and local recovery remain available. It provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
+**Version `0.1.0a7`: the source-only PID example checks its output path before reading configuration or starting computation.** Keep the original files, configuration and gains, then retry in a fresh directory. The own-model example's early check, report guidance and local recovery remain available. It provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
 
 
-**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a6/SparsiLoop-0.1.0a6.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a6) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
+**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a7/SparsiLoop-0.1.0a7.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a7) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
 
 ## Start with your task
 

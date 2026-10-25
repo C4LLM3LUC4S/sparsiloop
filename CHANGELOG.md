@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0a7 — 2026-10-25
+
+- Reject an unusable output path in the optional source-only `examples.simple_pid_case` command before configuration reads or PID work. Keep original files and retry the same configuration and gains in a fresh directory.
+- Ship the corrected example, focused recovery checks and matching instructions in the offline/source downloads. The installed core, `run_case` API, PID adapter algorithms and numerical/history formats retain their behavior.
+- The example's whole-file source digest changes with this CLI fix; old source and records remain unchanged. An early check is not a guarantee against later storage failure. No new algorithm or optional dependency is added to the wheel.
+
 ## 0.1.0a6 — 2026-10-25
 
 - Check new-output eligibility in the source-only `examples.planned_model_case` select/test driver before resolving paths, reading its specification/record, constructing an adapter or running computation. A blocked path preserves the original files and directs a retry into a fresh directory with the same plan and reserved IDs.
