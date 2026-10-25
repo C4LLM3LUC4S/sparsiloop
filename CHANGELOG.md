@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0a8 — 2026-10-26
+
+- Add a local fixed-feedback task for the built-in double integrator with a known constant position target. Compare all three schedules in error coordinates while exporting physical position, target error, clipped commands, disturbed interval inputs and message events separately.
+- Keep a typed complete task record before rendering; verify source/configuration/run consistency and redraw without training, simulation or recomputing original metrics. A late export failure prints the actual retained-record recovery command; initial save/readback failure is outside that guarantee.
+- Make the task discoverable from both task guides, distinguish installed offline-bundle paths from source-checkout paths, and retain old numerical, learned-policy and planned-record identities. This does not extend scalar, learned, custom-model or time-varying tracking, hardware safety or stability claims.
+
 ## 0.1.0a7 — 2026-10-25
 
 - Reject an unusable output path in the optional source-only `examples.simple_pid_case` command before configuration reads or PID work. Keep original files and retry the same configuration and gains in a fresh directory.

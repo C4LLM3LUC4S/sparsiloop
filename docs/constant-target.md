@@ -4,13 +4,21 @@
 
 ## 先跑一个小任务
 
-Python 3.10+。在完整解压的源码目录里，或安装当前包后使用其中的方案文件：
+需要 Python 3.10+。第一次使用建议下载并完整解压发行 ZIP，先按顶层 `START_HERE.md` 离线安装。在 **ZIP 解压后的顶层目录**运行：
+
+```powershell
+.\.venv\Scripts\python.exe -I -m event_control_lab.constant_target run --spec source/examples/constant-target.json --out reports/constant-target
+```
+
+完整记录和报告会保存在 `reports/constant-target/`。macOS / Linux 把解释器路径换成 `.venv/bin/python`。**单独的 wheel 不含示例方案文件**；安装 wheel 的使用者还需要下载匹配版本的源码包，或从[完整方案示例](../examples/constant-target.json)另存自己的 JSON。
+
+如果使用克隆仓库或解压后的源码包，在包含 `pyproject.toml` 的源码目录运行：
 
 ```powershell
 python -m event_control_lab.constant_target run --spec examples/constant-target.json --out runs/constant-target
 ```
 
-示例从实际位置 0 移向目标 1。打开 `runs/constant-target/report.html`，先核对实际初始位置和目标，再看**目标误差 RMSE**与实际消息账本。这只是一个原创归一化教学任务，不是设备标定或独立用户效果。
+示例从实际位置 0 移向目标 1。打开自己输出目录中的 `report.html`，先核对实际初始位置和目标，再看**目标误差 RMSE**与实际消息账本。这只是一个原创归一化教学任务，不是设备标定或独立用户效果。
 
 把方案另存到自己的文件，再修改 `target`、实际 `config.initial_position`、初始速度、网络或发送设置。不要覆盖已有报告；新实验使用新的 `--out`。`target` 和物理初始位置的教学范围分别是 −5 到 5，初始误差 `initial_position-target` 还必须通过原 Config 的范围与状态界限校验。
 
@@ -34,6 +42,8 @@ python -m event_control_lab.constant_target run --spec examples/constant-target.
 python -m event_control_lab.constant_target render "old results/target-task.json" --out runs/redrawn-target
 ```
 
+上面是源码目录的命令。使用完整 ZIP 的已安装环境时，在 ZIP 顶层把 `python` 换成 `.\.venv\Scripts\python.exe -I`（macOS / Linux 用 `.venv/bin/python -I`），完整记录路径指向实际保存的位置。不要用 CSV、简化报告或旧策略文件替代完整记录。
+
 这条命令不重新训练、仿真或计算原指标，原执行环境保持不变，只另记重绘环境。记录会核对目标、实际初态、误差设置、原随机输入、源码及结果结构；摘要是自录一致性检查，不能认证来源。旧比较、planned 结果、checkpoint 或 CSV 不能代替 `target-task.json`。
 
 本地导出先保存并读回完整任务。后续报告写出失败或中断时，会打印实际保留的恢复文件和重绘命令。连完整记录本身也未保存或未通过读回时，不承诺恢复。网页临时下载不在这条新任务范围内。
@@ -45,5 +55,7 @@ python -m event_control_lab.constant_target render "old results/target-task.json
 ## English
 
 The local constant-target task supports the built-in double integrator with a fixed known position target and fixed feedback. It reuses the unchanged core in error coordinates `e=p-r`, preserving physical input. The report and CSV separately display physical position and tracking error. Relative events use the error/velocity norm; state limits bound that error state, not physical safety. Commands are clipped before input disturbance. RMSE retains the full-horizon trapezoidal convention and failed results remain null.
+
+After installing from the complete offline ZIP, run from its top level with `.venv/Scripts/python.exe -I -m event_control_lab.constant_target run --spec source/examples/constant-target.json --out reports/constant-target` (use `.venv/bin/python` on macOS/Linux). Source checkouts and extracted sdists instead use `python -m event_control_lab.constant_target ... --spec examples/constant-target.json`. The wheel alone does not include example JSON files.
 
 Keep the complete `target-task.json`, original spec and matching source. `render` validates and redraws the original record without new computation, retaining missing original environments as unknown. Old zero-target comparison/policy/planned files are not this typed task. No scalar reference tracking, learned-policy transfer, varying trajectory, hardware or stability claim is made.

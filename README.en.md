@@ -6,10 +6,10 @@ Try it on your computer: set a message limit, delay and loss probability, then c
 
 [中文](README.md) · [Start here](START_HERE.md) · [Protocol](docs/protocol.md)
 
-**Version `0.1.0a7`: the source-only PID example checks its output path before reading configuration or starting computation.** Keep the original files, configuration and gains, then retry in a fresh directory. The own-model example's early check, report guidance and local recovery remain available. It provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
+**Version `0.1.0a8` adds a local constant-target task.** Move the built-in position–velocity model toward a fixed known position, inspect physical position alongside target error and message counts, then save the complete record for redraw without recomputation. It uses fixed feedback and retains the contracts of old learned policies and zero-target workflows. The lab provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
 
 
-**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a7/SparsiLoop-0.1.0a7.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a7) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
+**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a8/SparsiLoop-0.1.0a8.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a8) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
 
 ## Start with your task
 
@@ -18,6 +18,7 @@ Start with one decision and a retained recheck. [Practical value and local workl
 | What you want to do | Where to start |
 | --- | --- |
 | Explore the effect of fewer messages | Run `python quickstart.py` and compare error with actual attempted messages |
+| Move position toward a fixed target | [Constant-target task](docs/constant-target.md): compare three local schedules, inspect physical position and target error, then redraw the complete saved record without computation |
 | Choose a schedule before inspecting test outcomes | [Planned selection](docs/planned-study.md), in the web lab or CLI; keep all candidates and failures, without test-based reselection |
 | Reuse a trained scalar Q policy | [Frozen-policy workflow](docs/planned-policy.md), using a complete saved file or the preceding web result; no retraining |
 | Continue across standalone evaluations and later plans | [Chronological history](docs/policy-history.md) in the web interface or local CLI/Python; retain the supplied origin and subsequent phases |

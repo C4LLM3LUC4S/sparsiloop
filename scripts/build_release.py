@@ -128,6 +128,18 @@ Open the printed loopback URL; keep the terminal open and stop with Ctrl+C.
 Start-Process .\\reports\\first-ilc\\report.html
 ```
 
+已有固定目标位置？使用内置位置—速度模型的本地任务 / Try a fixed position target:
+
+```powershell
+.\\.venv\\Scripts\\python.exe -I -m event_control_lab.constant_target run --spec source/examples/constant-target.json --out reports/constant-target
+```
+
+先核目标和实际初态，再看误差与消息账本。保留完整 `target-task.json` 及匹配源码；
+只重绘时用 `constant_target render`，不会重新训练或仿真。
+Check the target and initial state before reading error and message counts. Keep
+the complete task record and matching source; redraw does not rerun computation.
+[常值目标任务 / Constant-target guide](source/docs/constant-target.md)
+
 源码免安装入口也在这里：进入 `source/`，运行 `python quickstart.py`。
 The source preview is `cd source` then `python quickstart.py`.
 Source-relative example paths start in that directory; the installed interpreter

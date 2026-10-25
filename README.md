@@ -8,10 +8,10 @@ A local lab to compare event-triggered and periodic control under communication 
 
 [English guide](README.en.md) · [第一次使用](START_HERE.md) · [名称与简介](BRANDING.md)
 
-**当前是 `0.1.0a7` alpha 发行版。** 源码包里的 PID 示例也会先检查保存路径，再读取配置或开始计算。路径被占用时，保留原文件，把输出换到新目录，沿用原配置和增益重试。自有模型示例的提前检查、报告指引与本地恢复继续可用。 目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
+**当前是 `0.1.0a8` alpha 发行版。** 新增本地常值目标任务：让内置位置—速度对象向预先设定的位置移动，分开看实际位置、目标误差和消息账本，保存完整记录后可以不重算就恢复报告。它只使用固定反馈，不改变旧学习策略和零目标流程。目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
 
 
-**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a7/SparsiLoop-0.1.0a7.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a7) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
+**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a8/SparsiLoop-0.1.0a8.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a8) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
 
 ## 从你要做的事开始
 
@@ -20,6 +20,7 @@ A local lab to compare event-triggered and periodic control under communication 
 | 想做什么 | 从哪里开始 |
 | --- | --- |
 | 先看看少发消息有什么影响 | 运行 `python quickstart.py`，在网页调整条件后比较误差与实际消息数 |
+| 让位置向一个固定目标移动 | [常值目标任务](docs/constant-target.md)：本地比较三种发送方式，分开看实际位置和目标误差，保存完整记录后可零计算重绘 |
 | 在消息上限内选一个发送门槛，再换条件复核 | [选择与复核](docs/planned-study.md)：网页或本地命令保存全部候选与失败，测试结果不会改选 |
 | 用训练好的 Q 策略选发送方式 | [冻结策略复用](docs/planned-policy.md)：网页可复用前一结果，也可载入完整文件；不重新训练 |
 | 在单独评测与下一轮计划之间接着走 | [完整历史接续](docs/policy-history.md)：网页或本地 API/CLI 保留起点与后续阶段，不用手抄已用编号 |
