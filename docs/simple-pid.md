@@ -14,9 +14,9 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m examples.simple_pid_case --out runs/pid-first
 ```
 
-macOS/Linux 使用 `.venv/bin/python` 替换最后两行的解释器路径。源码目录中已有 `event_control_lab`，不需要先构建核心包；本例不是单独安装 wheel 后自带的命令。核心的默认运行与 44 项基础检查仍不需要这个第三方库。
+macOS/Linux 使用 `.venv/bin/python` 替换最后两行的解释器路径。源码目录中已有 `event_control_lab`，不需要先构建核心包；本例不是单独安装 wheel 后自带的命令。核心的默认运行与基础检查仍不需要这个第三方库。
 
-修改对象或链路时，可加 `--config examples/default.json`，并在自己的配置副本中设置 `plant`。用 `--ki 0.1 --kd 0.05` 明确 PID 增益；比例增益来自配置的 `kp`，配置的 `kd` 只供内置控制器使用。输出中的 `actual_gains` 才是本例实际增益。缺依赖时按错误提示安装精确版本；已有输出目录会拒绝覆盖。
+修改对象或链路时，可加 `--config examples/default.json`，并在自己的配置副本中设置 `plant`。用 `--ki 0.1 --kd 0.05` 明确 PID 增益；比例增益来自配置的 `kp`，配置的 `kd` 只供内置控制器使用。输出中的 `actual_gains` 才是本例实际增益。缺依赖时按错误提示安装精确版本。保存位置已经存在，或上级路径是文件时，源码命令会在读取配置和开始计算前停下。先保留原文件，再把 `--out` 换成新目录；配置和增益照旧，不必为了修路径改变实验条件。提前检查不能保证后续磁盘空间和权限一直可用。
 
 ## 时序和信息边界
 
@@ -41,6 +41,6 @@ macOS/Linux 使用 `.venv/bin/python` 替换最后两行的解释器路径。源
 
 ## English
 
-From the source root, create a virtual environment, install the hash-locked optional requirement and run `python -m examples.simple_pid_case --out runs/pid-first`. Use that environment's interpreter for every command. The standard-library core does not require simple-pid.
+From the source root, create a virtual environment, install the hash-locked optional requirement and run `python -m examples.simple_pid_case --out runs/pid-first`. Use that environment's interpreter for every command. The standard-library core does not require simple-pid. The source command checks the output before configuration reads or computation. If the output exists or a parent is a file, keep it and retry the original configuration and gains in a fresh directory. This early check does not guarantee later storage availability.
 
 The adapter uses delivered position measurements, a simulation arrival clock and explicit arrival gaps. The first observation initializes P only; later I/D updates use received-observation gaps. A fresh PID is created for each policy. `controller.json` records provenance, actual gains and every component update. The frozen-clock case is a synthetic negative control, not a timing benchmark. Internal PID clipping and downstream actuator clipping have separate scopes. This is a pinned integration recipe, not tuning, stability or adoption evidence.

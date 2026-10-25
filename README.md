@@ -8,10 +8,10 @@ A local lab to compare event-triggered and periodic control under communication 
 
 [English guide](README.en.md) · [第一次使用](START_HERE.md) · [名称与简介](BRANDING.md)
 
-**当前是 `0.1.0a6` alpha 发行版。** 源码包里的自有模型选择/复核示例，会先检查保存路径，再读取文件和构建模型。路径被占用时，换新目录即可沿用原方案重试；已有报告保留。独立评测的报告指引与本地恢复继续可用。 目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
+**当前是 `0.1.0a7` alpha 发行版。** 源码包里的 PID 示例也会先检查保存路径，再读取配置或开始计算。路径被占用时，保留原文件，把输出换到新目录，沿用原配置和增益重试。自有模型示例的提前检查、报告指引与本地恢复继续可用。 目前提供两个归一化教学对象、一条传感器上行链路、三种发送策略及独立的学习控制案例。网页与命令行共用 Python 仿真核心，控制器只能读取已经到达的测量。Python 3.10+；核心和本地服务不需要第三方依赖、账户、API 密钥或 GPU。
 
 
-**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a6/SparsiLoop-0.1.0a6.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a6) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
+**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a7/SparsiLoop-0.1.0a7.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a7) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
 
 ## 从你要做的事开始
 
