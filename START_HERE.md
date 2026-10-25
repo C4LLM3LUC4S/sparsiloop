@@ -2,7 +2,7 @@
 
 第一次用，可以先打开网页，看少发一些消息会怎样影响控制结果。已经有具体任务的话，下面也列了对应入口。
 
-当前版本是 **0.1.0a4 alpha**。需要 Python 3.10+。首次使用建议下载[完整离线包](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a4/SparsiLoop-0.1.0a4.zip)，完整解压后先按包内顶层 `START_HERE.md` 安装；[发行说明和校验](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a4)列出全部文件。
+当前版本是 **0.1.0a5 alpha**。需要 Python 3.10+。首次使用建议下载[完整离线包](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a5/SparsiLoop-0.1.0a5.zip)，完整解压后先按包内顶层 `START_HERE.md` 安装；[发行说明和校验](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a5)列出全部文件。
 
 使用源码入口时，进入离线包的 `source/`，或将本仓库的 Code → Download ZIP **完整解压**，在含有 `quickstart.py` 的项目文件夹打开终端：
 
@@ -67,6 +67,8 @@ python quickstart.py --mode controllers
 
 想换成自己的模型：先运行 `python -m examples.own_model_case --out runs/own-model`，打开新目录中的 `report.html`。报告会带你查看一个简化执行器在减少消息后的表现，再尝试三种控制方法。熟悉流程后，按[模型接入说明](docs/own-model.md)替换示例中的模型。先用已知输入检查计算结果，再比较控制效果。
 
+独立评测的本地报告末尾会分清：直接看旧结果、用完整 `evaluation.json` 只重绘报告，或用更新后的 checkpoint 另测未用过的编号。后者会产生新测试；checkpoint 不能代替完整阶段历史。
+
 想把这次结果留到以后，除了完整报告和最新历史，也保存对应的发行 ZIP。具体哪些文件用于复核、接续或只重绘，见[旧文件与源码恢复](docs/source-recovery.md)。
 
 ## 没有成功打开时
@@ -80,7 +82,7 @@ python quickstart.py --mode controllers
 
 ## English
 
-For version **0.1.0a4 alpha**, download the [complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a4/SparsiLoop-0.1.0a4.zip) and follow its top-level `START_HERE.md`. For a source preview with Python 3.10+, enter the bundle's `source/` directory or extract the full repository and run `python quickstart.py`. It binds an available loopback port before opening your browser. No installation, account or additional dependency is required. Keep the terminal open; Ctrl+C stops the server. The top comparison changes measurement-sending rules. The controller section runs MFAC, ILC and Q-learning separately; the planned section first selects a sending schedule and then tests the saved choice under the reserved conditions.
+For version **0.1.0a5 alpha**, download the [complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a5/SparsiLoop-0.1.0a5.zip) and follow its top-level `START_HERE.md`. For a source preview with Python 3.10+, enter the bundle's `source/` directory or extract the full repository and run `python quickstart.py`. It binds an available loopback port before opening your browser. No installation, account or additional dependency is required. Keep the terminal open; Ctrl+C stops the server. The top comparison changes measurement-sending rules. The controller section runs MFAC, ILC and Q-learning separately; the planned section first selects a sending schedule and then tests the saved choice under the reserved conditions.
 
 Controller recipes and standalone policy tests use the scalar teaching model, 20 ms steps and 0.2–2 s horizons. Planned tasks use 20 ms steps and allow 0.2–8 s: fixed feedback supports both built-in models, while frozen Q policies remain scalar and retain their trained horizon and input limit. These ranges do not change an existing checkpoint or override the workload limits. See [web workflows](docs/web-recipes.md).
 
@@ -91,3 +93,5 @@ For static learning reports, run `python quickstart.py --mode controllers`; `--n
 If a command's output path already exists or a parent path is a file, it stops before starting a new experiment. Choose a new `--out` directory under a folder and retry; existing files and results stay unchanged.
 
 If a local planned/history or standalone-evaluation report fails during saving and prints a retained complete record, keep it and run the printed redraw command in a working location. Redraw does not repeat training, selection or testing. If the initial recovery copy could not be written or read back, no complete backup is promised. See [save-failure recovery](docs/source-recovery.md#算完了报告却没能保存完整). This local recovery does not provide browser-download recovery.
+
+Local standalone reports distinguish reading saved HTML, redrawing the complete `evaluation.json` without new computation, and using the updated checkpoint for a new test with unused IDs. Keep any separate complete phase history; a checkpoint does not replace or merge it.

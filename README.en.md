@@ -6,10 +6,10 @@ Try it on your computer: set a message limit, delay and loss probability, then c
 
 [中文](README.md) · [Start here](START_HERE.md) · [Protocol](docs/protocol.md)
 
-**Version `0.1.0a4`: alpha update for input guidance and retained local standalone evaluation reports.** It provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
+**Version `0.1.0a5`: standalone reports now guide you to read saved results, redraw the complete evaluation, or start a new test with the updated checkpoint.** Local save recovery and input guidance remain available. It provides two normalized teaching plants, three sensor-to-controller schedules and separate learning recipes. Controllers see only received observations. The core and local web server use Python 3.10+ and the standard library; no account, API key or GPU is needed. The prototype does not certify stability or hardware safety, reproduce a paper, or establish independent adoption.
 
 
-**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a4/SparsiLoop-0.1.0a4.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a4) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
+**[下载完整离线包 / Complete offline bundle](https://github.com/C4LLM3LUC4S/sparsiloop/releases/download/v0.1.0a5/SparsiLoop-0.1.0a5.zip)** · [发行说明与校验 / Release and checksums](https://github.com/C4LLM3LUC4S/sparsiloop/releases/tag/v0.1.0a5) · [旧文件与源码恢复 / Saved-file recovery](docs/source-recovery.md)
 
 ## Start with your task
 
