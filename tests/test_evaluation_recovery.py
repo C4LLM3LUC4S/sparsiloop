@@ -142,9 +142,42 @@ class EvaluationRecoveryTests(unittest.TestCase):
                     patch("event_control_lab.planned_study.read_json", side_effect=AssertionError("Wrong cap")):
                 self.assertEqual(report.read_evaluation(original), self.saved)
                 report.export_evaluation(self.saved, root / "redrawn")
+                report.export_policy_evaluation(self.saved, root / "legacy")
             self.assert_outputs(self.saved, root / "redrawn")
+            page = (root / "redrawn/report.html").read_text(encoding="utf-8")
+            self.assertIn('id="saved-result-next-steps"', page)
+            self.assertIn('evaluation_report render "PATH/evaluation.json"', page)
+            self.assertIn('href="policy-checkpoint.json"', page)
+            self.assertNotIn("当前 MFAC、ILC 要求", page)
+            for source in (root / "legacy").iterdir():
+                if source.name != "report.html":
+                    self.assertEqual(source.read_bytes(), (root / "redrawn" / source.name).read_bytes())
             self.assertEqual(original.read_bytes(), self.original)
             self.assertEqual(list(root.glob("sparsiloop-recovery-*.json")), [])
+
+    def test_final_report_guidance_write_failure_keeps_complete_recovery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            target = root / "partial"
+            original_write = Path.write_text
+            writes = []
+
+            def fail_last_page(path, *args, **kwargs):
+                if path == target / "report.html":
+                    writes.append(path)
+                    if len(writes) == 2:
+                        raise OSError("injected final report guidance failure")
+                return original_write(path, *args, **kwargs)
+
+            with self.no_compute(), patch.object(Path, "write_text", new=fail_last_page):
+                with self.assertRaises(export_recovery.ExportRecoveryError) as failed:
+                    report.export_evaluation(self.saved, target)
+            self.assertEqual(len(writes), 2)
+            self.assertEqual(report.read_evaluation(failed.exception.record_path), self.saved)
+            self.assertEqual(json.loads((target / "evaluation.json").read_text(encoding="utf-8")), self.saved)
+            with self.no_compute():
+                report.export_evaluation(self.saved, root / "recovered")
+            self.assert_outputs(self.saved, root / "recovered")
 
     def test_late_failure_retains_complete_result_and_redraw_preserves_failed_nulls(self):
         value = deepcopy(self.saved)
