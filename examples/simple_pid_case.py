@@ -12,6 +12,7 @@ import sys
 from event_control_lab import Config, compare
 from event_control_lab.__main__ import export
 from event_control_lab.engine import POLICIES
+from event_control_lab.output_paths import check_new_output
 
 
 PINNED_VERSION = "2.0.1"
@@ -114,6 +115,7 @@ def main():
     parser.add_argument("--kd", type=float, default=0.05)
     arguments = parser.parse_args()
     try:
+        check_new_output(arguments.out)
         config = Config.from_dict(json.loads(arguments.config.read_text(encoding="utf-8-sig"))) if arguments.config else Config()
         result, record = run_case(config, arguments.out, arguments.ki, arguments.kd)
         print(json.dumps({"output": str(arguments.out.resolve()), "library_version": record["version"],
