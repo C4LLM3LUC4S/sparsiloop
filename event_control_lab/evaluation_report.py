@@ -19,6 +19,17 @@ from .policy import load_checkpoint, seed_list
 
 FORMAT = "frozen-policy-evaluation-v1"
 
+NEXT_STEPS = '''<section id="saved-result-next-steps"><h2>下次想做什么？</h2>
+<p><b>只看这次结果：</b>把整个输出目录或报告 ZIP 留好，以后直接打开 report.html，不需要重新测试。</p>
+<p><b>重新生成这份报告：</b>使用 <a href="evaluation.json" download>完整 evaluation.json</a>，它保留本次原策略、全部结果、失败和已用编号。policy-checkpoint.json 和 controllers.json 不能替代完整评测。</p>
+<details><summary>查看只重绘报告的命令</summary>
+<p>先使用当时保存的代码和 Python 环境。把 PATH 换成文件所在位置，并为输出选一个尚不存在的新目录：</p>
+<pre>python -m event_control_lab.evaluation_report render "PATH/evaluation.json" --out "PATH/redrawn-report"</pre>
+<p>这条命令只读取原记录，不训练、不重新测试，也不补齐缺失的执行环境。只有策略而没有原结果，无法找回当时的完整轨迹。</p></details>
+<p><b>另外测一组条件：</b>使用本次 <a href="policy-checkpoint.json" download>更新后的完整策略</a>，另选未用过的编号，保留原报告。这会产生一次新测试，不是在重绘或复核原计划。</p>
+<p>这个 checkpoint 保留已知编号，但没有完整阶段顺序。之前还用过完整历史流程时，也要保留那份历史和各步结果；这里不会自动合并它们。</p>
+<details><summary>Scope and English guide</summary><p>This is a standalone test of a fixed scalar policy against fixed feedback, not a new training run. Keep the whole output and matching source. Redraw the complete evaluation.json without new computation; a checkpoint or controllers.json cannot recreate missing results. For a new test, use the updated checkpoint and unused IDs, retaining any separate full phase history. This report does not merge that history or certify independent testing, stability or hardware performance.</p></details></section>'''
+
 
 def number(value):
     return type(value) in (int, float) and math.isfinite(value)
@@ -174,6 +185,15 @@ def export_evaluation(value, destination):
     validate_evaluation(value)
     with recovery_record(value, target, "evaluation", verify=read_evaluation):
         export_policy_evaluation(value, target)
+        page = target / "report.html"
+        original = page.read_text(encoding="utf-8")
+        marker = '<section><h2>看完后可以做什么？</h2>'
+        start = original.find(marker)
+        if start == -1:
+            start = original.rfind("</html>")
+        if start == -1:
+            start = len(original)
+        page.write_text(original[:start] + NEXT_STEPS + "</html>", encoding="utf-8")
 
 
 def main(argv=None):
