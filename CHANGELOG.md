@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0a6 — 2026-10-25
+
+- Check new-output eligibility in the source-only `examples.planned_model_case` select/test driver before resolving paths, reading its specification/record, constructing an adapter or running computation. A blocked path preserves the original files and directs a retry into a fresh directory with the same plan and reserved IDs.
+- Cover occupied directories, file-valued parents, nested/normalization paths, valid retry routing and actual documented source commands. The model implementation, installed core, numerical records and source identities remain unchanged by this driver fix.
+- Distribute the corrected source example and instructions in new offline assets, preserving previous alphas. No new algorithm, model capability or later-write guarantee is added.
+
 ## 0.1.0a5 — 2026-10-25
 
 - Give local safe standalone reports three distinct next steps: read saved output, redraw the complete evaluation without computation, or start a new test from the updated checkpoint and unused IDs. Keep the separate full phase history when it exists.
