@@ -10,7 +10,7 @@ import tempfile
 
 
 MODULES = {"planned": "event_control_lab.planned_study", "history": "event_control_lab.policy_journal",
-           "evaluation": "event_control_lab.evaluation_report"}
+           "evaluation": "event_control_lab.evaluation_report", "constant_target": "event_control_lab.constant_target"}
 
 
 def quote_path(value):
